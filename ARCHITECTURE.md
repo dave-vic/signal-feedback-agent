@@ -136,36 +136,69 @@ prioritized backlog in minutes, not days.
 ```
 
 ### Screen 1 — Upload (home)
-Drag-and-drop CSV + expected-format hint + "use sample dataset" button (loads the
-demo CSV — also makes demos one-click). Past runs listed below. → starts run, goes to 2.
+**Headline (above the drop zone):** "Drop in your raw feedback. Get back a prioritized
+roadmap — with receipts." Subtitle: "Upload a CSV of reviews, tickets, and survey
+comments. Signal triages, clusters, and drafts the tickets. You approve."
 
-### Screen 2 — Processing
-Live pipeline progress: the five stages as steps, current counts ("147 items triaged,
-12 excluded as noise…"). Polls `GET /runs/:id`. Auto-advances to 3 when awaiting_review.
-*This screen is demo gold — design it to be watched.*
+- Drag-and-drop CSV zone + **"Try the sample dataset"** button (loads the demo CSV —
+  one-click demos).
+- **Format forgiveness note:** "Expected columns: source, text — extra columns are
+  fine, we'll ignore them." Backend validation stays forgiving to match.
+- **Empty state = onboarding:** before any runs exist, show the 3-step explainer
+  (Upload messy feedback → Signal finds themes & drafts tickets → You review and
+  approve) with the sample-dataset button beneath it.
+- **Past runs as story cards**, not filenames: "190 items → 9 themes → 6 tickets ·
+  2 approved · 11 Jun".
+- Deliberately NO settings/config/model options on this screen. → starts run, goes to 2.
 
-### Screen 3 — Themes overview
-Themes as cards sorted by priority. Each card: title, P-badge, evidence count
-("14 items · 3 sources"), one-line problem statement. Click → 4.
+### Screen 2 — Processing ("watch the agent think")
+The demo's leading actor. Not a spinner — a live narration of real pipeline work:
+- The five stages as a vertical checklist that fills in: Ingesting → Triaging →
+  Finding themes → Prioritizing → Drafting tickets.
+- **Live decision ticker** under the active stage, fed by real pipeline output:
+  "Item #47: complaint (0.95) — sarcasm detected" · "Merged 5 phrasings of
+  'transfer failed, money deducted'" · "12 items excluded as noise."
+- Running counters: items processed, noise filtered, themes forming.
+- **Payoff line on completion:** "190 items → 9 themes → 6 draft tickets. Ready for
+  your review." Then auto-advance to 3.
+- Polls `GET /runs/:id` (status + counts; ticker may read recent AuditEvents).
 
-### Screen 4 — Theme detail (the evidence chain)
-Problem statement, priority + full rationale, sources breakdown, and the complete
-list of underlying feedback items (original text + category + summary). This screen
-IS the trust argument. Button: "view draft ticket" → 5.
+### Screen 3 — Themes overview (the payoff)
+Theme cards sorted by priority — the page must answer "what's on fire?" in a
+two-second glance:
+- Each card: theme title, P1–P4 badge, evidence count ("31 items · 3 sources"),
+  one-line problem statement, small sentiment strip (mix of rage vs mild).
+- **P1s get visual weight:** top of page, larger, warm alarm-color badge.
+- **Honesty line at the bottom:** "14 items excluded as noise/spam — view them"
+  (click-through shows the discarded items; trust through transparency).
+- Deliberately NO filters/search/sort — nine themes don't need a filter bar.
+- Click a card → 4.
 
-### Screen 5 — Approval queue (the checkpoint)
-Draft tickets as expandable cards: title, user story, acceptance criteria, severity,
-link back to theme. Actions per ticket: **Edit** (inline), **Approve** (→ Jira/mock,
+### Screen 4 — Theme detail (the "show me why" screen / evidence chain)
+Proves the ranking: problem statement; priority with the agent's full rationale in
+plain words ("31 users across all three sources, several threatening to report to
+BoG"); sources breakdown; then **the complete list of underlying feedback items**
+(original text + category + summary). This screen IS the trust argument —
+"don't trust me, check me." Button: "view draft ticket" → 5.
+
+### Screen 5 — Approval queue (the checkpoint — the heart of the product)
+Draft tickets wait here; nothing leaves without the human. Expandable cards:
+title, user story, 3–5 testable acceptance criteria, severity, link back to theme.
+Exactly three actions per ticket: **Edit** (inline), **Approve** (→ Jira/mock,
 shows returned ticket key), **Reject** (reason optional). Approved/rejected move to
-a "decided" section. *Track 4's human-in-the-loop requirement, made visible.*
+a "decided" section. *The agent proposes; the human disposes. Track 4's
+human-in-the-loop requirement, made visible.*
 
-### Screen 6 — Audit trail
-Chronological log of every agent decision and human action, filterable by stage.
-Plain, readable language ("Stage 2: merged items #41, #87 into theme 'Slow dashboard
-load' — qwen-max, 1,204 tokens").
+### Screen 6 — Audit trail (the diary / receipts drawer)
+Chronological log of every agent decision AND human action, in plain sentences,
+each tagged (AI) or (Human): "7:02pm — Grouped 5 complaints into 'Failed transfers'
+(AI)" · "7:15pm — Davida approved → sent to Jira (Human)". Filterable by stage.
+Boring on purpose: it exists so "why does this ticket exist?" always has a written
+answer.
 
 Design notes: clean, calm, confident — this is a PM tool, not a developer console.
 Mobile layout out of scope.
+*Screen designs reviewed and approved by Davida (product owner), 11 Jun 2026.*
 
 ---
 
