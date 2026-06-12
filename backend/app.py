@@ -34,6 +34,35 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+    # Startup recovery: if the server was killed mid-pipeline, any run still in
+    # an in-progress status will never advance. Mark them failed immediately so
+    # the frontend doesn't show a spinner forever.
+    IN_PROGRESS_STATUSES = ("ingesting", "triaging", "theming", "prioritizing", "drafting")
+    from datetime import datetime, timezone
+    from models import AuditEvent
+
+    stuck_runs = PipelineRun.query.filter(PipelineRun.status.in_(IN_PROGRESS_STATUSES)).all()
+    for run in stuck_runs:
+        previous_status = run.status   # capture before overwriting
+        run.status = "failed"
+        run.finished_at = datetime.now(timezone.utc)
+        db.session.add(AuditEvent(
+            run_id=run.id,
+            stage="pipeline",
+            action="pipeline_failed",
+            detail_json=json.dumps({
+                "error": f"Server restarted while run was in status '{previous_status}'. "
+                         "Pipeline did not complete."
+            }),
+        ))
+    if stuck_runs:
+        db.session.commit()
+        import logging
+        logging.getLogger(__name__).warning(
+            "Marked %d stuck run(s) as failed on startup: %s",
+            len(stuck_runs), [r.id for r in stuck_runs]
+        )
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
