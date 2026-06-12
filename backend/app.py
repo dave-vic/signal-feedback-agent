@@ -1,20 +1,20 @@
 """
-Signal — Hello World backend
-=============================
-The smallest possible version of Signal's brain:
-receive text -> send it to Qwen -> return the reply.
-
-Run it locally first, then deploy the same file to Alibaba Function Compute.
-Every line is commented because reading and understanding this file IS the exercise.
+Signal — Backend
+================
+Flask app: routing and request/response only.
+All pipeline logic lives in pipeline.py.
 """
 
 import os
 import json
+import tempfile
+import threading
 import requests
 from flask import Flask, request, jsonify
 
-from models import db
+from models import db, PipelineRun, FeedbackItem
 from prompts import TRIAGE_PROMPT
+from pipeline import run_pipeline
 
 app = Flask(__name__)
 
@@ -111,6 +111,74 @@ def classify():
         "input": body["text"],
         "classification": classification,
         "tokens_used": data.get("usage", {}),  # free observability
+    })
+
+
+# ---------------------------------------------------------------------------
+# Pipeline endpoints
+# ---------------------------------------------------------------------------
+
+@app.route("/runs", methods=["POST"])
+def create_run():
+    """
+    Accepts: multipart/form-data with a 'file' field containing a CSV.
+    Creates a PipelineRun, saves the CSV to a temp file, starts the pipeline
+    in a background thread, and returns the run_id immediately so the caller
+    can poll GET /runs/<id> for progress.
+    """
+    if "file" not in request.files:
+        return jsonify({"error": "No file field in request"}), 400
+
+    uploaded = request.files["file"]
+    if not uploaded.filename:
+        return jsonify({"error": "Empty filename"}), 400
+
+    # Save the uploaded file to a temp path that the background thread can read.
+    # NamedTemporaryFile with delete=False gives us a real path on disk.
+    suffix = os.path.splitext(uploaded.filename)[1] or ".csv"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    uploaded.save(tmp.name)
+
+    # Create the PipelineRun row now so we have an ID to return immediately.
+    with app.app_context():
+        run = PipelineRun(filename=uploaded.filename, status="ingesting")
+        db.session.add(run)
+        db.session.commit()
+        run_id = run.id
+
+    # Start the pipeline in a background thread.
+    # We pass `app` explicitly because threads don't inherit Flask's context.
+    thread = threading.Thread(
+        target=run_pipeline,
+        args=(app, run_id, tmp.name),
+        daemon=True,
+    )
+    thread.start()
+
+    return jsonify({"run_id": run_id, "status": "ingesting"}), 202
+
+
+@app.route("/runs/<int:run_id>", methods=["GET"])
+def get_run(run_id):
+    """
+    Returns the current status and counts for a pipeline run.
+    The frontend polls this endpoint to display progress.
+    """
+    with app.app_context():
+        run = db.session.get(PipelineRun, run_id)
+
+    if run is None:
+        return jsonify({"error": "Run not found"}), 404
+
+    counts = json.loads(run.counts_json) if run.counts_json else {}
+
+    return jsonify({
+        "run_id": run.id,
+        "filename": run.filename,
+        "status": run.status,
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+        "counts": counts,
     })
 
 
