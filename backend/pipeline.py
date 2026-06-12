@@ -48,7 +48,7 @@ def _call_qwen(messages: list, model: str) -> dict:
         QWEN_URL,
         json={"model": model, "messages": messages},
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        timeout=60,
+        timeout=90,
     )
     resp.raise_for_status()
     return resp.json()
