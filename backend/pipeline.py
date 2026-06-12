@@ -1,8 +1,9 @@
 """
-Signal — Agent pipeline (Stages 0 and 1)
-=========================================
-Stage 0: INGEST   — parse CSV into FeedbackItem rows
-Stage 1: TRIAGE   — classify items with qwen-turbo, mark exclusions, audit everything
+Signal — Agent pipeline (Stages 0, 1, and 2)
+=============================================
+Stage 0: INGEST            — parse CSV into FeedbackItem rows
+Stage 1: TRIAGE            — classify items with qwen-turbo, mark exclusions, audit everything
+Stage 2: THEME SYNTHESIS   — group items into themes with qwen-max, validate evidence chain
 
 This module has no Flask imports. It's pure Python that talks to the database
 and the Qwen API. app.py calls run_pipeline() in a background thread.
@@ -15,14 +16,15 @@ import logging
 import requests
 from datetime import datetime, timezone
 
-from models import db, PipelineRun, FeedbackItem, AuditEvent
-from prompts import TRIAGE_PROMPT, TRIAGE_RETRY_PROMPT
+from models import db, PipelineRun, FeedbackItem, AuditEvent, Theme
+from prompts import TRIAGE_PROMPT, TRIAGE_RETRY_PROMPT, THEME_PROMPT, THEME_RETRY_PROMPT
 
 logger = logging.getLogger(__name__)
 
 # Qwen endpoint and model choices — match ARCHITECTURE.md
 QWEN_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 TRIAGE_MODEL = "qwen-turbo"
+THEME_MODEL = "qwen-max"
 
 BATCH_SIZE = 10   # items per Qwen call during triage
 VALID_CATEGORIES = {"bug_report", "feature_request", "complaint", "praise", "noise"}
@@ -373,18 +375,223 @@ def run_triage(app, run_id: int):
 
 
 # ---------------------------------------------------------------------------
-# Top-level: run the full pipeline (Stages 0 + 1)
+# Stage 2: THEME SYNTHESIS
+# ---------------------------------------------------------------------------
+
+def _validate_theme_response(parsed: list, valid_ids: set) -> tuple[list, set]:
+    """
+    Check a parsed list of theme dicts for hallucinated or duplicate item_ids.
+
+    Returns (cleaned_themes, bad_ids) where:
+      - cleaned_themes is the list with only known, non-duplicated ids kept
+      - bad_ids is the set of ids that were invalid (empty = all good)
+
+    A theme whose item_ids list becomes empty after cleaning is removed entirely.
+    This function never raises — it always returns something usable.
+    """
+    bad_ids = set()
+    seen_globally = set()   # an id should appear in at most one theme
+    cleaned = []
+
+    for theme in parsed:
+        if not isinstance(theme, dict):
+            continue
+        if not all(k in theme for k in ("title", "problem_statement", "item_ids")):
+            continue
+        if not isinstance(theme["item_ids"], list):
+            continue
+
+        clean_ids = []
+        for item_id in theme["item_ids"]:
+            try:
+                item_id = int(item_id)
+            except (TypeError, ValueError):
+                bad_ids.add(item_id)
+                continue
+            if item_id not in valid_ids:
+                bad_ids.add(item_id)
+                continue
+            if item_id in seen_globally:
+                # Duplicate across themes — skip silently (first theme wins)
+                continue
+            clean_ids.append(item_id)
+            seen_globally.add(item_id)
+
+        if clean_ids:
+            cleaned.append({
+                "title": str(theme["title"]).strip(),
+                "problem_statement": str(theme["problem_statement"]).strip(),
+                "item_ids": clean_ids,
+            })
+
+    return cleaned, bad_ids
+
+
+def _compute_sources_breakdown(item_ids: list, items_by_id: dict) -> dict:
+    """
+    Given a list of item ids and a lookup dict of FeedbackItem objects,
+    return a dict counting how many items came from each source.
+    e.g. {"app_store": 9, "support": 5, "nps": 3}
+    """
+    breakdown = {}
+    for item_id in item_ids:
+        item = items_by_id.get(item_id)
+        if item:
+            breakdown[item.source] = breakdown.get(item.source, 0) + 1
+    return breakdown
+
+
+def run_theme_synthesis(app, run_id: int):
+    """
+    Stage 2: group all non-excluded FeedbackItems into themes using qwen-max.
+
+    Sends {id, category, summary} for every item in one call.
+    Validates that every returned item_id exists in this run's real item ids.
+    Retries once with a corrective prompt if hallucinated ids are found.
+    On second failure: drops bad ids, keeps valid ones, logs the event.
+    Writes Theme rows and one AuditEvent.
+    """
+    _update_run(app, run_id, status="theming")
+
+    # Load all non-excluded items for this run
+    with app.app_context():
+        items = (FeedbackItem.query
+                 .filter_by(run_id=run_id, excluded=False)
+                 .order_by(FeedbackItem.id)
+                 .all())
+        # Build a lookup dict we can use after the app context closes
+        items_by_id = {item.id: item for item in items}
+
+    if not items:
+        _write_audit(app, run_id, "theme_synthesis", "skipped",
+                     {"reason": "no items to theme"})
+        return
+
+    valid_ids = set(items_by_id.keys())
+
+    # Build the payload — summaries are short, so the full list fits in one call
+    payload = [
+        {"id": item.id, "category": item.category, "summary": item.summary}
+        for item in items
+    ]
+
+    messages = [
+        {"role": "system", "content": THEME_PROMPT},
+        {"role": "user", "content": json.dumps(payload)},
+    ]
+
+    # --- First attempt ---
+    try:
+        raw_response = _call_qwen(messages, THEME_MODEL)
+        reply_text = _extract_text(raw_response)
+        usage = _extract_usage(raw_response)
+    except requests.RequestException as e:
+        _write_audit(app, run_id, "theme_synthesis", "api_error",
+                     {"error": str(e)})
+        raise   # propagate to run_pipeline so the run is marked failed
+
+    # Parse the JSON
+    try:
+        parsed = json.loads(reply_text)
+        if not isinstance(parsed, list):
+            raise ValueError("Response is not a JSON array")
+    except (json.JSONDecodeError, ValueError) as e:
+        _write_audit(app, run_id, "theme_synthesis", "parse_error",
+                     {"error": str(e), "raw_reply": reply_text},
+                     model=THEME_MODEL, **usage)
+        raise RuntimeError(f"Theme synthesis: could not parse model response: {e}")
+
+    # Validate ids in the parsed response
+    themes, bad_ids = _validate_theme_response(parsed, valid_ids)
+
+    # --- Corrective retry if bad ids were found ---
+    if bad_ids:
+        logger.warning("Theme synthesis: hallucinated ids %s, retrying", bad_ids)
+        _write_audit(app, run_id, "theme_synthesis", "hallucinated_ids_first_attempt", {
+            "bad_ids": list(bad_ids),
+            "valid_id_count": len(valid_ids),
+        }, model=THEME_MODEL, **usage)
+
+        retry_messages = messages + [
+            {"role": "assistant", "content": reply_text},
+            {"role": "user", "content": THEME_RETRY_PROMPT.format(
+                bad_output=reply_text,
+                valid_ids=", ".join(str(i) for i in sorted(valid_ids)),
+                bad_ids=", ".join(str(i) for i in sorted(bad_ids)),
+            )},
+        ]
+
+        try:
+            raw_response = _call_qwen(retry_messages, THEME_MODEL)
+            reply_text = _extract_text(raw_response)
+            usage = _extract_usage(raw_response)
+            parsed = json.loads(reply_text)
+            themes, bad_ids = _validate_theme_response(parsed, valid_ids)
+        except (requests.RequestException, json.JSONDecodeError) as e:
+            _write_audit(app, run_id, "theme_synthesis", "retry_error",
+                         {"error": str(e)},
+                         model=THEME_MODEL, **usage)
+            # Fall through — themes holds whatever valid results we have so far
+
+        if bad_ids:
+            # Second failure: log and continue with whatever valid ids survived
+            _write_audit(app, run_id, "theme_synthesis", "hallucinated_ids_after_retry", {
+                "bad_ids_dropped": list(bad_ids),
+                "note": "Invalid ids removed; valid ids retained",
+            }, model=THEME_MODEL, **usage)
+            logger.error(
+                "Theme synthesis run %d: still has bad ids after retry — "
+                "dropped %d invalid ids, continuing with valid ones",
+                run_id, len(bad_ids),
+            )
+
+    # --- Write Theme rows ---
+    themes_created = 0
+    with app.app_context():
+        for theme_data in themes:
+            sources = _compute_sources_breakdown(theme_data["item_ids"], items_by_id)
+            theme = Theme(
+                run_id=run_id,
+                title=theme_data["title"],
+                problem_statement=theme_data["problem_statement"],
+                item_ids=json.dumps(theme_data["item_ids"]),
+                sources_breakdown=json.dumps(sources),
+                # priority and rationale left empty — filled by Stage 3
+            )
+            db.session.add(theme)
+            themes_created += 1
+
+        # Update the counts on the run
+        run = db.session.get(PipelineRun, run_id)
+        existing_counts = json.loads(run.counts_json) if run.counts_json else {}
+        existing_counts["themes"] = themes_created
+        run.counts_json = json.dumps(existing_counts)
+        db.session.commit()
+
+    _write_audit(app, run_id, "theme_synthesis", "themes_created", {
+        "themes_created": themes_created,
+        "items_input": len(items),
+    }, model=THEME_MODEL,
+       tokens_in=usage.get("tokens_in"),
+       tokens_out=usage.get("tokens_out"))
+
+    logger.info("Theme synthesis complete: %d themes from %d items", themes_created, len(items))
+
+
+# ---------------------------------------------------------------------------
+# Top-level: run the full pipeline (Stages 0, 1, and 2)
 # ---------------------------------------------------------------------------
 
 def run_pipeline(app, run_id: int, filepath: str):
     """
     Entry point called by app.py in a background thread.
-    Runs Stage 0 (ingest) then Stage 1 (triage).
+    Runs Stage 0 (ingest), Stage 1 (triage), Stage 2 (theme synthesis).
     Sets run status to awaiting_review on success, failed on error.
     """
     try:
         run_ingest(app, run_id, filepath)
         run_triage(app, run_id)
+        run_theme_synthesis(app, run_id)
         _update_run(app, run_id,
                     status="awaiting_review",
                     finished_at=datetime.now(timezone.utc))

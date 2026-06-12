@@ -12,7 +12,7 @@ import threading
 import requests
 from flask import Flask, request, jsonify
 
-from models import db, PipelineRun, FeedbackItem
+from models import db, PipelineRun, FeedbackItem, Theme
 from prompts import TRIAGE_PROMPT
 from pipeline import run_pipeline
 
@@ -179,6 +179,91 @@ def get_run(run_id):
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "counts": counts,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Theme endpoints
+# ---------------------------------------------------------------------------
+
+@app.route("/runs/<int:run_id>/themes", methods=["GET"])
+def get_themes(run_id):
+    """
+    Returns all themes for a run: title, problem_statement, evidence count,
+    sources breakdown. Sorted by number of items descending (most evidence first)
+    until Stage 3 adds priority scores.
+    """
+    with app.app_context():
+        run = db.session.get(PipelineRun, run_id)
+        if run is None:
+            return jsonify({"error": "Run not found"}), 404
+
+        themes = (Theme.query
+                  .filter_by(run_id=run_id)
+                  .order_by(Theme.id)
+                  .all())
+
+    result = []
+    for t in themes:
+        item_ids = json.loads(t.item_ids) if t.item_ids else []
+        sources = json.loads(t.sources_breakdown) if t.sources_breakdown else {}
+        result.append({
+            "id": t.id,
+            "title": t.title,
+            "problem_statement": t.problem_statement,
+            "priority": t.priority,
+            "evidence_count": len(item_ids),
+            "sources_breakdown": sources,
+        })
+
+    # Sort by evidence count descending until priority is available
+    result.sort(key=lambda t: t["evidence_count"], reverse=True)
+
+    return jsonify({"run_id": run_id, "themes": result})
+
+
+@app.route("/themes/<int:theme_id>", methods=["GET"])
+def get_theme(theme_id):
+    """
+    Returns one theme plus its full evidence chain: every underlying
+    FeedbackItem's original text, category, and summary.
+    This is the 'show me why' screen — the trust argument.
+    """
+    with app.app_context():
+        theme = db.session.get(Theme, theme_id)
+        if theme is None:
+            return jsonify({"error": "Theme not found"}), 404
+
+        item_ids = json.loads(theme.item_ids) if theme.item_ids else []
+        sources = json.loads(theme.sources_breakdown) if theme.sources_breakdown else {}
+
+        # Fetch the actual FeedbackItem rows in one query
+        items = (FeedbackItem.query
+                 .filter(FeedbackItem.id.in_(item_ids))
+                 .order_by(FeedbackItem.id)
+                 .all())
+        items_payload = [
+            {
+                "id": item.id,
+                "source": item.source,
+                "text": item.text,
+                "category": item.category,
+                "summary": item.summary,
+                "confidence": item.confidence,
+            }
+            for item in items
+        ]
+
+    return jsonify({
+        "id": theme.id,
+        "run_id": theme.run_id,
+        "title": theme.title,
+        "problem_statement": theme.problem_statement,
+        "priority": theme.priority,
+        "rationale": theme.rationale,
+        "sources_breakdown": sources,
+        "evidence_count": len(item_ids),
+        "items": items_payload,
     })
 
 
