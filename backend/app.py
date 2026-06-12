@@ -13,7 +13,26 @@ import json
 import requests
 from flask import Flask, request, jsonify
 
+from models import db
+from prompts import TRIAGE_PROMPT
+
 app = Flask(__name__)
+
+# ---------------------------------------------------------------------------
+# Database configuration
+# ---------------------------------------------------------------------------
+# SQLite stores everything in a single file next to app.py during local dev.
+# To switch to Alibaba RDS later, replace this URL with the MySQL connection
+# string — none of the model code in models.py needs to change.
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///signal.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False  # silences a noisy warning
+
+db.init_app(app)
+
+# Create all tables on startup if they don't already exist.
+# This is safe to call every time — SQLAlchemy skips tables that are already there.
+with app.app_context():
+    db.create_all()
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -29,14 +48,7 @@ API_KEY = os.environ.get("DASHSCOPE_API_KEY")
 # China (Beijing) region, swap to: https://dashscope.aliyuncs.com/compatible-mode/v1
 QWEN_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
 
-# The exact prompt that worked in the playground, now living in code.
-SYSTEM_PROMPT = (
-    "You are a product feedback triage system. Classify the feedback item into "
-    "exactly one of: bug_report, feature_request, complaint, praise, noise. "
-    "Detect sarcasm and classify by the true underlying sentiment. "
-    "Respond ONLY with a JSON object with keys: category, summary, confidence. "
-    "No other text, no markdown."
-)
+# TRIAGE_PROMPT is now imported from prompts.py (see above).
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +78,7 @@ def classify():
     payload = {
         "model": "qwen-turbo",
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": TRIAGE_PROMPT},
             {"role": "user", "content": body["text"]},
         ],
     }
