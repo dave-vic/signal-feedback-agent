@@ -10,12 +10,16 @@
 
 const BASE = '/api'
 
-async function request(method, path, body) {
+async function request(method, path, body, contentType) {
+  const headers = {}
+  if (contentType) headers['Content-Type'] = contentType
+
   const res = await fetch(`${BASE}${path}`, {
     method,
     body,
     // Don't set Content-Type for FormData — the browser sets it automatically
-    // with the correct multipart boundary. For JSON we'd set it explicitly.
+    // with the correct multipart boundary. For JSON we set it explicitly above.
+    headers,
   })
 
   if (!res.ok) {
@@ -52,7 +56,22 @@ export async function getTheme(themeId) {
   return request('GET', `/themes/${themeId}`)
 }
 
-/** Get all draft tickets for a run. */
-export async function getTickets(runId) {
-  return request('GET', `/runs/${runId}/tickets`)
+/** Get all draft tickets for a run. Pass { all: true } to include approved/rejected. */
+export async function getTickets(runId, { all = false } = {}) {
+  return request('GET', `/runs/${runId}/tickets${all ? '?all=true' : ''}`)
+}
+
+/** Edit ticket fields before approving. Accepted: title, user_story, acceptance_criteria, severity. */
+export async function editTicket(ticketId, fields) {
+  return request('PATCH', `/tickets/${ticketId}`, JSON.stringify(fields), 'application/json')
+}
+
+/** Approve a draft ticket (status → "approved", local only — nothing auto-sent). */
+export async function approveTicket(ticketId) {
+  return request('POST', `/tickets/${ticketId}/approve`)
+}
+
+/** Reject a draft ticket. Optionally pass a reason string. */
+export async function rejectTicket(ticketId, reason = '') {
+  return request('POST', `/tickets/${ticketId}/reject`, JSON.stringify({ reason }), 'application/json')
 }

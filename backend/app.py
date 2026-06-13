@@ -370,6 +370,158 @@ def get_theme(theme_id):
 
 
 # ---------------------------------------------------------------------------
+# Ticket action endpoints — human-in-the-loop
+# ---------------------------------------------------------------------------
+
+@app.route("/tickets/<int:ticket_id>", methods=["PATCH"])
+def edit_ticket(ticket_id):
+    """
+    Edit one or more fields of a draft ticket before approving.
+    Accepted fields in the JSON body: title, user_story,
+    acceptance_criteria (list of strings), severity.
+    Sets edited_by_human=True and writes an AuditEvent recording
+    exactly which fields changed and their old vs new values.
+    """
+    from datetime import datetime, timezone
+    from models import AuditEvent
+
+    body = request.get_json(silent=True) or {}
+    EDITABLE = {"title", "user_story", "acceptance_criteria", "severity"}
+    updates  = {k: v for k, v in body.items() if k in EDITABLE}
+
+    if not updates:
+        return jsonify({"error": "No editable fields provided"}), 400
+
+    with app.app_context():
+        ticket = db.session.get(DraftTicket, ticket_id)
+        if ticket is None:
+            return jsonify({"error": "Ticket not found"}), 404
+
+        # Record old values for the audit trail
+        diff = {}
+        for field, new_val in updates.items():
+            if field == "acceptance_criteria":
+                old_val = json.loads(ticket.acceptance_criteria) \
+                    if ticket.acceptance_criteria else []
+                ticket.acceptance_criteria = json.dumps(new_val)
+            else:
+                old_val = getattr(ticket, field)
+                setattr(ticket, field, new_val)
+            diff[field] = {"old": old_val, "new": new_val}
+
+        ticket.edited_by_human = True
+
+        # Resolve run_id via the parent theme so AuditEvent has it
+        theme  = db.session.get(Theme, ticket.theme_id)
+        run_id = theme.run_id if theme else None
+
+        db.session.add(AuditEvent(
+            run_id=run_id,
+            stage="human",
+            action="ticket_edited",
+            detail_json=json.dumps({
+                "ticket_id": ticket_id,
+                "changes": diff,
+            }),
+        ))
+        db.session.commit()
+
+        return jsonify({
+            "id":                ticket.id,
+            "title":             ticket.title,
+            "user_story":        ticket.user_story,
+            "acceptance_criteria": json.loads(ticket.acceptance_criteria)
+                if ticket.acceptance_criteria else [],
+            "severity":          ticket.severity,
+            "status":            ticket.status,
+            "edited_by_human":   ticket.edited_by_human,
+        })
+
+
+@app.route("/tickets/<int:ticket_id>/approve", methods=["POST"])
+def approve_ticket(ticket_id):
+    """
+    Mark a draft ticket as approved.
+    This only updates status locally — nothing is sent anywhere automatically.
+    Writes an AuditEvent tagged stage="human", action="ticket_approved".
+    """
+    from datetime import datetime, timezone
+    from models import AuditEvent
+
+    with app.app_context():
+        ticket = db.session.get(DraftTicket, ticket_id)
+        if ticket is None:
+            return jsonify({"error": "Ticket not found"}), 404
+
+        if ticket.status == "approved":
+            return jsonify({"error": "Ticket is already approved"}), 409
+
+        previous_status  = ticket.status
+        ticket.status    = "approved"
+
+        theme  = db.session.get(Theme, ticket.theme_id)
+        run_id = theme.run_id if theme else None
+
+        db.session.add(AuditEvent(
+            run_id=run_id,
+            stage="human",
+            action="ticket_approved",
+            detail_json=json.dumps({
+                "ticket_id":      ticket_id,
+                "title":          ticket.title,
+                "previous_status": previous_status,
+                "edited_by_human": ticket.edited_by_human,
+            }),
+        ))
+        db.session.commit()
+
+    return jsonify({"id": ticket_id, "status": "approved"})
+
+
+@app.route("/tickets/<int:ticket_id>/reject", methods=["POST"])
+def reject_ticket(ticket_id):
+    """
+    Mark a draft ticket as rejected.
+    Accepts an optional JSON body: {"reason": "duplicate of PROJ-12"}.
+    Writes an AuditEvent tagged stage="human", action="ticket_rejected".
+    """
+    from datetime import datetime, timezone
+    from models import AuditEvent
+
+    body   = request.get_json(silent=True) or {}
+    reason = body.get("reason", "")
+
+    with app.app_context():
+        ticket = db.session.get(DraftTicket, ticket_id)
+        if ticket is None:
+            return jsonify({"error": "Ticket not found"}), 404
+
+        if ticket.status == "rejected":
+            return jsonify({"error": "Ticket is already rejected"}), 409
+
+        previous_status = ticket.status
+        ticket.status   = "rejected"
+
+        theme  = db.session.get(Theme, ticket.theme_id)
+        run_id = theme.run_id if theme else None
+
+        db.session.add(AuditEvent(
+            run_id=run_id,
+            stage="human",
+            action="ticket_rejected",
+            detail_json=json.dumps({
+                "ticket_id":       ticket_id,
+                "title":           ticket.title,
+                "previous_status": previous_status,
+                "reason":          reason,
+            }),
+        ))
+        db.session.commit()
+
+    return jsonify({"id": ticket_id, "status": "rejected"})
+
+
+# ---------------------------------------------------------------------------
 # Local development entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
