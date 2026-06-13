@@ -5,29 +5,15 @@ import Badge from '../../components/Badge.jsx'
 import styles from './UploadPage.module.css'
 
 // ---------------------------------------------------------------------------
-// Sample dataset — embedded so "Try sample dataset" works with zero setup.
+// Sample dataset — fetched from /sikapay_feedback_sample.csv (in public/).
 // ---------------------------------------------------------------------------
-const SAMPLE_CSV = `source,text,date,rating
-app_store,"The app crashed three times during my transfer and my money disappeared. I had to call support four times and still haven't got a refund.",2024-01-15,1
-support,"Charged twice for the same transaction. Opened a ticket 2 weeks ago, no resolution yet.",2024-01-18,
-nps,"Transfer failed silently — no error, no notification, just gone. Only realised when I checked my balance.",2024-01-20,2
-app_store,"The new home screen is much cleaner and the quick-pay button saves me loads of time. Really happy with this update.",2024-01-21,5
-support,"Biometric login stopped working after the latest update. Have to type my password every time which defeats the point.",2024-01-22,
-app_store,"Sent money to the wrong number by accident. There is absolutely no confirmation step before the transfer goes through.",2024-01-23,1
-nps,"App is quite slow to load — takes about 8 seconds on my phone. Seems to have got worse recently.",2024-01-24,3
-support,"I can't export my transaction history as a CSV any more. I need this for my accountant. Please bring it back.",2024-01-25,
-app_store,"Money was deducted but recipient never received it. Support told me to wait 5-7 days. This is completely unacceptable.",2024-01-26,1
-nps,"Overall I like the app but the notification settings are confusing. I keep getting alerts I didn't ask for.",2024-01-27,3
-app_store,"Failed transfer again. Third time this month. Each time I have to chase support for a refund. Absolutely fuming.",2024-01-28,1
-support,"The dark mode option I enabled keeps resetting after every app restart. Minor but annoying.",2024-01-29,
-app_store,"Tried to send money abroad and got a generic error with no explanation. Had to use a competitor app instead.",2024-01-30,2
-nps,"Customer service agent was really helpful and resolved my issue within the hour. One of the best support experiences I've had.",2024-01-31,5
-support,"Balance shown in the app doesn't match my actual bank balance. Off by £12.40 for the past three days.",2024-02-01,
-`
+const SAMPLE_FILENAME = 'sikapay_feedback_sample.csv'
 
-function csvToFile(csv, filename = 'sample-feedback.csv') {
-  const blob = new Blob([csv], { type: 'text/csv' })
-  return new File([blob], filename, { type: 'text/csv' })
+async function fetchSampleFile() {
+  const res = await fetch(`/${SAMPLE_FILENAME}`)
+  if (!res.ok) throw new Error('Could not load sample dataset')
+  const text = await res.text()
+  return new File([text], SAMPLE_FILENAME, { type: 'text/csv' })
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +99,14 @@ export default function UploadPage() {
   function onDragLeave()  { setIsDragOver(false) }
   function onDrop(e)      { e.preventDefault(); setIsDragOver(false); handleUpload(e.dataTransfer.files[0]) }
   function onFileChange(e){ handleUpload(e.target.files[0]); e.target.value = '' }
-  function onSampleClick(){ handleUpload(csvToFile(SAMPLE_CSV)) }
+  async function onSampleClick() {
+    try {
+      const file = await fetchSampleFile()
+      handleUpload(file)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
 
   const hasPastRuns = pastRuns.length > 0
 
@@ -206,7 +199,7 @@ export default function UploadPage() {
           disabled={isUploading}
         >
           <span className={styles.sampleIcon}>◈</span>
-          Try the sample dataset — 15 feedback items across app reviews, support tickets &amp; NPS
+          Try the sample dataset — 190 feedback items across app reviews, support tickets &amp; NPS
         </button>
 
         {error && <div className={styles.error}>{error}</div>}
