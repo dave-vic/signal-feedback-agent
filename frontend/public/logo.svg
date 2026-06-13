@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Dark rounded square background -->
+  <rect width="256" height="256" rx="48" fill="#111111"/>
+
+  <!-- Four overlapping circles (medium grey, semi-transparent) -->
+  <!-- Top circle -->
+  <circle cx="128" cy="72" r="68" fill="none" stroke="#4A4A4A" stroke-width="1.5" opacity="0.6"/>
+  <!-- Bottom circle -->
+  <circle cx="128" cy="184" r="68" fill="none" stroke="#4A4A4A" stroke-width="1.5" opacity="0.6"/>
+  <!-- Left circle -->
+  <circle cx="72" cy="128" r="68" fill="none" stroke="#4A4A4A" stroke-width="1.5" opacity="0.6"/>
+  <!-- Right circle -->
+  <circle cx="184" cy="128" r="68" fill="none" stroke="#4A4A4A" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Four lens-shaped petals formed at circle intersections -->
+  <!-- Each petal is the intersection of two adjacent circles, drawn with SVG arcs -->
+
+  <!-- Top petal (intersection of top+left and top+right circles, upper region) -->
+  <path d="M 128 44
+             A 68 68 0 0 1 155.7 98.3
+             A 68 68 0 0 1 100.3 98.3
+             A 68 68 0 0 1 128 44 Z"
+        fill="#E8E8E8" opacity="0.9"/>
+
+  <!-- Right petal -->
+  <path d="M 212 128
+             A 68 68 0 0 1 157.7 155.7
+             A 68 68 0 0 1 157.7 100.3
+             A 68 68 0 0 1 212 128 Z"
+        fill="#D0D0D0" opacity="0.85"/>
+
+  <!-- Bottom petal -->
+  <path d="M 128 212
+             A 68 68 0 0 1 100.3 157.7
+             A 68 68 0 0 1 155.7 157.7
+             A 68 68 0 0 1 128 212 Z"
+        fill="#E8E8E8" opacity="0.9"/>
+
+  <!-- Left petal -->
+  <path d="M 44 128
+             A 68 68 0 0 1 98.3 100.3
+             A 68 68 0 0 1 98.3 155.7
+             A 68 68 0 0 1 44 128 Z"
+        fill="#D0D0D0" opacity="0.85"/>
+
+  <!-- Center star — the 4-pointed bright core -->
+  <path d="M 128 88
+             C 128 108 148 128 168 128
+             C 148 128 128 148 128 168
+             C 128 148 108 128 88 128
+             C 108 128 128 108 128 88 Z"
+        fill="#FFFFFF"/>
+</svg>

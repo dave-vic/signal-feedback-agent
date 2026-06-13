@@ -18,7 +18,24 @@ export default function AppShell({ children }) {
     <div className={styles.shell}>
       {/* ---- Sidebar ---- */}
       <aside className={styles.sidebar}>
-        <div className={styles.wordmark}>Signal.</div>
+        <div className={styles.wordmark}>
+          {/* Signal mark — inline SVG sparkle on dark rounded square */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 32 32"
+            width="22"
+            height="22"
+            className={styles.wordmarkIcon}
+            aria-hidden="true"
+          >
+            <rect width="32" height="32" rx="6" fill="#111111"/>
+            <path
+              d="M 16 4 C 16 16, 16 16, 28 16 C 16 16, 16 16, 16 28 C 16 16, 16 16, 4 16 C 16 16, 16 16, 16 4 Z"
+              fill="#FFFFFF"
+            />
+          </svg>
+          <span className={styles.wordmarkText}>Signal</span>
+        </div>
 
         {/* Workspace section */}
         <div className={styles.navLabel}>Workspace</div>
