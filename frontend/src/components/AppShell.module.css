@@ -468,6 +468,79 @@
 }
 
 /* ================================================================
+   MOBILE DRAWER + BACKDROP
+   ================================================================ */
+
+.drawerBackdrop {
+  display: none;
+}
+
+.drawer {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .drawerBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 300;
+    animation: fadeIn 0.18s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .drawer {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    z-index: 310;
+    padding: var(--space-5) var(--space-4);
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .drawerOpen {
+    transform: translateX(0);
+  }
+
+  .drawerClose {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    background: none;
+    border: none;
+    border-radius: var(--radius);
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+  }
+  .drawerClose:hover {
+    background: var(--color-surface-subtle);
+    color: var(--color-text-primary);
+  }
+}
+
+/* ================================================================
    MAIN CONTENT AREA
    ================================================================ */
 
@@ -553,6 +626,32 @@
   .topbarNavItemDisabled {
     color: var(--color-text-tertiary);
     pointer-events: none;
+  }
+
+  /* Hamburger button */
+  .hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+    background: none;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background var(--transition);
+  }
+  .hamburger:hover { background: var(--color-surface-subtle); }
+
+  .hamburgerLine {
+    display: block;
+    width: 100%;
+    height: 1.5px;
+    background: var(--color-text-primary);
+    border-radius: 2px;
+    transition: background var(--transition);
   }
 
   /* Main: no left margin, push down to clear topbar */

@@ -293,74 +293,34 @@ export default function AppShell({ children }) {
     }
   }, [lastRunId])
 
-  return (
-    <div className={styles.shell}>
+  // Mobile drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const openDrawer  = () => setDrawerOpen(true)
+  const closeDrawer = () => setDrawerOpen(false)
 
-      {/* ================================================================
-          MOBILE TOP NAVBAR — visible only on ≤ 768px via CSS
-          ================================================================ */}
-      <header className={styles.topbar}>
-        <NavLink to="/" className={styles.topbarWordmark}>
-          <SignalMark size={20} />
-          <span className={styles.topbarWordmarkText}>Signal</span>
-        </NavLink>
+  // Close drawer on route change and on Escape
+  useEffect(() => { closeDrawer() }, [pathname])
+  useEffect(() => {
+    if (!drawerOpen) return
+    function onKey(e) { if (e.key === 'Escape') closeDrawer() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [drawerOpen])
 
-        <nav className={styles.topbarNav}>
-          {/* Upload */}
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              `${styles.topbarNavItem} ${isActive ? styles.topbarNavItemActive : ''}`
-            }
-          >
-            ↑ Upload
-          </NavLink>
-
-          {/* Themes — live when runId present */}
-          {runId ? (
-            <NavLink
-              to={`/runs/${runId}/themes`}
-              className={({ isActive }) =>
-                `${styles.topbarNavItem} ${isActive ? styles.topbarNavItemActive : ''}`
-              }
-            >
-              ◈ Themes
-            </NavLink>
-          ) : (
-            <span className={`${styles.topbarNavItem} ${styles.topbarNavItemDisabled}`}>
-              ◈ Themes
-            </span>
-          )}
-
-          {/* Approval queue — live when runId present */}
-          {runId && (
-            <NavLink
-              to={`/runs/${runId}/tickets`}
-              className={({ isActive }) =>
-                `${styles.topbarNavItem} ${isActive ? styles.topbarNavItemActive : ''}`
-              }
-            >
-              ✓ Queue
-            </NavLink>
-          )}
-        </nav>
-      </header>
-
-      {/* ================================================================
-          DESKTOP SIDEBAR — visible only on ≥ 769px via CSS
-          ================================================================ */}
-      <aside className={styles.sidebar}>
-        <NavLink to="/" className={styles.wordmark}>
+  // Shared sidebar content — used by both desktop aside and mobile drawer
+  function SidebarContent() {
+    return (
+      <>
+        <NavLink to="/" className={styles.wordmark} onClick={closeDrawer}>
           <SignalMark size={22} />
           <span className={styles.wordmarkText}>Signal</span>
         </NavLink>
 
-        {/* Workspace section */}
         <div className={styles.navLabel}>Workspace</div>
         <NavLink
           to="/"
           end
+          onClick={closeDrawer}
           className={({ isActive }) =>
             `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
           }
@@ -369,12 +329,12 @@ export default function AppShell({ children }) {
           Upload
         </NavLink>
 
-        {/* Results section */}
         <div className={styles.navLabel} style={{ marginTop: 'var(--space-4)' }}>Results</div>
 
         {runId ? (
           <NavLink
             to={`/runs/${runId}/themes`}
+            onClick={closeDrawer}
             className={({ isActive }) =>
               `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
             }
@@ -393,6 +353,7 @@ export default function AppShell({ children }) {
         {runId ? (
           <NavLink
             to={`/runs/${runId}/tickets`}
+            onClick={closeDrawer}
             className={({ isActive }) =>
               `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
             }
@@ -411,6 +372,7 @@ export default function AppShell({ children }) {
         {runId ? (
           <NavLink
             to={`/runs/${runId}/audit`}
+            onClick={closeDrawer}
             className={({ isActive }) =>
               `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
             }
@@ -426,12 +388,65 @@ export default function AppShell({ children }) {
           </div>
         )}
 
-        {/* Run history */}
         <RunHistory activeRunId={runId} onRunsLoaded={handleRunsLoaded} />
 
         <div className={styles.sidebarFooter}>
           <div className={styles.sidebarFooterText}>Signal · local dev</div>
         </div>
+      </>
+    )
+  }
+
+  return (
+    <div className={styles.shell}>
+
+      {/* ================================================================
+          MOBILE TOP NAVBAR — visible only on ≤ 768px via CSS
+          ================================================================ */}
+      <header className={styles.topbar}>
+        <NavLink to="/" className={styles.topbarWordmark}>
+          <SignalMark size={20} />
+          <span className={styles.topbarWordmarkText}>Signal</span>
+        </NavLink>
+
+        <button
+          className={styles.hamburger}
+          onClick={openDrawer}
+          aria-label="Open navigation"
+          aria-expanded={drawerOpen}
+        >
+          <span className={styles.hamburgerLine} />
+          <span className={styles.hamburgerLine} />
+          <span className={styles.hamburgerLine} />
+        </button>
+      </header>
+
+      {/* ================================================================
+          MOBILE DRAWER — slides in from left over a backdrop
+          ================================================================ */}
+      {drawerOpen && (
+        <div
+          className={styles.drawerBackdrop}
+          onClick={closeDrawer}
+          aria-hidden="true"
+        />
+      )}
+      <aside className={`${styles.drawer} ${drawerOpen ? styles.drawerOpen : ''}`}>
+        <button
+          className={styles.drawerClose}
+          onClick={closeDrawer}
+          aria-label="Close navigation"
+        >
+          ×
+        </button>
+        <SidebarContent />
+      </aside>
+
+      {/* ================================================================
+          DESKTOP SIDEBAR — visible only on ≥ 769px via CSS
+          ================================================================ */}
+      <aside className={styles.sidebar}>
+        <SidebarContent />
       </aside>
 
       {/* ================================================================
