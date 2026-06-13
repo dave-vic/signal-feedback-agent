@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import AppShell from './components/AppShell.jsx'
 import UploadPage from './pages/Upload/UploadPage.jsx'
 import ProcessingPage from './pages/Processing/ProcessingPage.jsx'
+import ThemesPage from './pages/Themes/ThemesPage.jsx'
 
 export default function App() {
   return (
@@ -9,6 +10,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<UploadPage />} />
         <Route path="/runs/:runId" element={<ProcessingPage />} />
+        <Route path="/runs/:runId/themes" element={<ThemesPage />} />
       </Routes>
     </AppShell>
   )

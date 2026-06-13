@@ -2,69 +2,72 @@ import { NavLink, useParams } from 'react-router-dom'
 import styles from './AppShell.module.css'
 
 /**
- * AppShell — the persistent sidebar + layout wrapper.
+ * AppShell — persistent sidebar + layout wrapper.
  *
- * Every screen renders inside this shell. The sidebar is built once here;
- * future screens (themes, approval queue, audit) just slot into {children}.
- *
- * Nav items for screens not yet built are shown but disabled — they'll become
- * real links as we build each screen.
+ * Reads runId from the URL params so the sidebar can link to
+ * run-scoped screens (Themes, Approval queue, Audit trail) when
+ * the user is inside a run. When no run is in context those items
+ * stay disabled.
  */
-
-// Nav items — active ones have a `to` path; future ones have `soon: true`
-const NAV_ITEMS = [
-  {
-    section: 'Workspace',
-    items: [
-      { label: 'Upload',         icon: '↑',  to: '/' },
-    ],
-  },
-  {
-    section: 'Results',
-    items: [
-      { label: 'Themes',         icon: '◈',  soon: true },
-      { label: 'Approval queue', icon: '✓',  soon: true },
-      { label: 'Audit trail',    icon: '≡',  soon: true },
-    ],
-  },
-]
-
 export default function AppShell({ children }) {
+  // useParams works here because AppShell is rendered inside <BrowserRouter>
+  const params = useParams()
+  const runId  = params.runId || null
+
   return (
     <div className={styles.shell}>
       {/* ---- Sidebar ---- */}
       <aside className={styles.sidebar}>
         <div className={styles.wordmark}>Signal.</div>
 
-        {NAV_ITEMS.map(group => (
-          <div key={group.section}>
-            <div className={styles.navLabel}>{group.section}</div>
-            {group.items.map(item =>
-              item.soon ? (
-                <div
-                  key={item.label}
-                  className={`${styles.navItem} ${styles.navItemDisabled}`}
-                >
-                  <span className={styles.navIcon}>{item.icon}</span>
-                  {item.label}
-                  <span className={styles.soonChip}>soon</span>
-                </div>
-              ) : (
-                <NavLink
-                  key={item.label}
-                  to={item.to}
-                  end
-                  className={({ isActive }) =>
-                    `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
-                  }
-                >
-                  <span className={styles.navIcon}>{item.icon}</span>
-                  {item.label}
-                </NavLink>
-              )
-            )}
+        {/* Workspace section */}
+        <div className={styles.navLabel}>Workspace</div>
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) =>
+            `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+          }
+        >
+          <span className={styles.navIcon}>↑</span>
+          Upload
+        </NavLink>
+
+        {/* Results section — active only when a runId is in the URL */}
+        <div className={styles.navLabel} style={{ marginTop: 'var(--space-4)' }}>Results</div>
+
+        {runId ? (
+          /* Themes — live link */
+          <NavLink
+            to={`/runs/${runId}/themes`}
+            className={({ isActive }) =>
+              `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+            }
+          >
+            <span className={styles.navIcon}>◈</span>
+            Themes
+          </NavLink>
+        ) : (
+          <div className={`${styles.navItem} ${styles.navItemDisabled}`}>
+            <span className={styles.navIcon}>◈</span>
+            Themes
+            <span className={styles.soonChip}>soon</span>
           </div>
-        ))}
+        )}
+
+        {/* Approval queue — coming next */}
+        <div className={`${styles.navItem} ${styles.navItemDisabled}`}>
+          <span className={styles.navIcon}>✓</span>
+          Approval queue
+          <span className={styles.soonChip}>soon</span>
+        </div>
+
+        {/* Audit trail — coming later */}
+        <div className={`${styles.navItem} ${styles.navItemDisabled}`}>
+          <span className={styles.navIcon}>≡</span>
+          Audit trail
+          <span className={styles.soonChip}>soon</span>
+        </div>
 
         <div className={styles.sidebarFooter}>
           <div className={styles.sidebarFooterText}>Signal · local dev</div>

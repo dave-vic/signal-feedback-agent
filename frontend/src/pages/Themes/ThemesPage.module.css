@@ -1,0 +1,218 @@
+/* =========================================================
+   Themes Overview — Screen 3
+   ========================================================= */
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-10) var(--space-16);
+}
+
+/* ---- Page header ---- */
+.pageHeader {
+  margin-bottom: var(--space-8);
+}
+
+.breadcrumb {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-3);
+}
+
+.breadcrumbLink {
+  color: var(--color-text-tertiary);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.breadcrumbLink:hover {
+  color: var(--color-text-secondary);
+}
+
+.breadcrumbSep {
+  margin: 0 var(--space-2);
+}
+
+.headline {
+  font-family: var(--font-serif);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+  letter-spacing: -0.02em;
+}
+
+.subline {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ---- Theme list ---- */
+.themeList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+/* ---- Theme card ---- */
+.themeCard {
+  display: block;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5) var(--space-6);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.themeCard:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+  text-decoration: none;
+  color: inherit;
+}
+
+/* P1 left accent bar */
+.themeCard_p1 {
+  border-left: 3px solid #FCA5A5;
+  padding-left: calc(var(--space-6) - 2px); /* compensate for wider border */
+}
+
+/* ---- Card top row: badge + title ---- */
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.cardTitle {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.35;
+  flex: 1;
+}
+
+/* ---- Problem statement ---- */
+.problemStatement {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-4);
+}
+
+/* ---- Card footer: evidence count + sources ---- */
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.evidenceCount {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.sources {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.sourceChip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.sourceDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+  flex-shrink: 0;
+}
+
+/* ---- Priority badge variants (extend the Badge component) ---- */
+/* These classes are applied directly to a span, matching Badge token names */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge_p1 { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+.badge_p2 { background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; }
+.badge_p3 { background: #FEFCE8; color: #92400E; border: 1px solid #FDE68A; }
+.badge_p4 { background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0; }
+
+/* ---- Honesty line ---- */
+.honestyLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.honestyIcon {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+/* ---- Loading / error / empty states ---- */
+.stateWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  text-align: center;
+  gap: var(--space-3);
+}
+
+.stateLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  margin-top: var(--space-2);
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.backLink:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-subtle);
+  text-decoration: none;
+}
