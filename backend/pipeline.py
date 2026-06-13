@@ -18,7 +18,7 @@ import logging
 import requests
 from datetime import datetime, timezone
 
-from models import db, PipelineRun, FeedbackItem, AuditEvent, Theme
+from models import db, PipelineRun, FeedbackItem, AuditEvent, Theme, DraftTicket
 from prompts import (TRIAGE_PROMPT, TRIAGE_RETRY_PROMPT,
                      THEME_PROMPT, THEME_RETRY_PROMPT, THEME_ORPHAN_PROMPT,
                      PRIORITY_PROMPT, PRIORITY_RETRY_PROMPT,
