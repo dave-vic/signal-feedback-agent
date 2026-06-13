@@ -3,7 +3,7 @@
    ========================================================= */
 
 .page {
-  max-width: 720px;
+  max-width: 740px;
   margin: 0 auto;
   padding: var(--space-10) var(--space-10) var(--space-16);
 }
@@ -58,36 +58,91 @@
   margin-bottom: var(--space-8);
 }
 
-/* ---- Theme card ---- */
+/* ===========================================================
+   THEME CARD — base
+   =========================================================== */
 .themeCard {
   display: block;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
+  border-left-width: 3px;           /* left accent — overridden per priority */
+  border-left-color: var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-5) var(--space-6);
   text-decoration: none;
   color: inherit;
-  box-shadow: var(--shadow-xs);
   transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
   position: relative;
   overflow: hidden;
 }
 
 .themeCard:hover {
-  border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
   transform: translateY(-1px);
   text-decoration: none;
   color: inherit;
 }
 
-/* P1 left accent bar */
+/* ===========================================================
+   PRIORITY VARIANTS — visual weight decreases P1 → P4
+   =========================================================== */
+
+/* --- P1: Urgent / red — strongest card --- */
 .themeCard_p1 {
-  border-left: 3px solid #FCA5A5;
-  padding-left: calc(var(--space-6) - 2px); /* compensate for wider border */
+  border-left-color: #DC2626;
+  background: linear-gradient(to right, #FFF5F5 0%, var(--color-surface) 120px);
+  padding-top:    var(--space-6);
+  padding-bottom: var(--space-6);
 }
 
-/* ---- Card top row: badge + title ---- */
+.themeCard_p1:hover {
+  border-color: #DC2626;
+  border-left-color: #DC2626;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.1);
+}
+
+/* --- P2: High / amber --- */
+.themeCard_p2 {
+  border-left-color: #D97706;
+  background: linear-gradient(to right, #FFFBF0 0%, var(--color-surface) 120px);
+}
+
+.themeCard_p2:hover {
+  border-color: #D97706;
+  border-left-color: #D97706;
+  box-shadow: 0 3px 12px rgba(217, 119, 6, 0.08);
+}
+
+/* --- P3: Medium / muted yellow — recedes --- */
+.themeCard_p3 {
+  border-left-color: #B45309;
+  background: var(--color-surface);
+}
+
+.themeCard_p3:hover {
+  border-color: #B45309;
+  border-left-color: #B45309;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* --- P4: Low / grey — most recessed --- */
+.themeCard_p4 {
+  border-left-color: #D1D5DB;
+  background: var(--color-surface);
+  opacity: 0.9;
+}
+
+.themeCard_p4:hover {
+  border-left-color: #9CA3AF;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  opacity: 1;
+}
+
+/* ===========================================================
+   CARD INTERNALS
+   =========================================================== */
+
+/* ---- Top row: badge + title ---- */
 .cardTop {
   display: flex;
   align-items: flex-start;
@@ -101,6 +156,12 @@
   color: var(--color-text-primary);
   line-height: 1.35;
   flex: 1;
+}
+
+/* P1 title slightly larger to reinforce hierarchy */
+.themeCard_p1 .cardTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 /* ---- Problem statement ---- */
@@ -117,16 +178,56 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
+  margin-top: auto;
 }
 
+/* Evidence count — prominent signal */
 .evidenceCount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
   font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 3px 10px 3px 8px;
+  white-space: nowrap;
 }
 
+/* The numeric part — bolder and slightly larger */
+.evidenceNumber {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* P1/P2 evidence count picks up a tinted border */
+.evidenceCount_p1 {
+  border-color: #FECACA;
+  background: #FFF5F5;
+  color: #991B1B;
+}
+
+.evidenceCount_p1 .evidenceNumber {
+  color: #DC2626;
+}
+
+.evidenceCount_p2 {
+  border-color: #FDE68A;
+  background: #FFFBF0;
+  color: #92400E;
+}
+
+.evidenceCount_p2 .evidenceNumber {
+  color: #D97706;
+}
+
+/* Sources */
 .sources {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-3);
 }
 
@@ -139,33 +240,60 @@
 }
 
 .sourceDot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--color-border-strong);
   flex-shrink: 0;
 }
 
-/* ---- Priority badge variants (extend the Badge component) ---- */
-/* These classes are applied directly to a span, matching Badge token names */
+/* ===========================================================
+   PRIORITY BADGE
+   =========================================================== */
 .badge {
   display: inline-flex;
   align-items: center;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   line-height: 1;
-  padding: 3px 8px;
+  padding: 3px 7px;
   border-radius: var(--radius-full);
   white-space: nowrap;
   flex-shrink: 0;
+  text-transform: uppercase;
 }
 
-.badge_p1 { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
-.badge_p2 { background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; }
-.badge_p3 { background: #FEFCE8; color: #92400E; border: 1px solid #FDE68A; }
-.badge_p4 { background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0; }
+/* P1 — solid red, white text: urgent, can't miss it */
+.badge_p1 {
+  background: #DC2626;
+  color: #FFFFFF;
+}
 
-/* ---- Honesty line ---- */
+/* P2 — solid amber, white text: high priority */
+.badge_p2 {
+  background: #D97706;
+  color: #FFFFFF;
+}
+
+/* P3 — tinted yellow, dark text: medium, softer */
+.badge_p3 {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+/* P4 — grey, muted: low, recedes */
+.badge_p4 {
+  background: #F3F4F6;
+  color: #6B7280;
+  border: 1px solid #E5E7EB;
+}
+
+/* ===========================================================
+   HONESTY LINE
+   =========================================================== */
 .honestyLine {
   display: flex;
   align-items: center;
@@ -181,7 +309,9 @@
   opacity: 0.6;
 }
 
-/* ---- Loading / error / empty states ---- */
+/* ===========================================================
+   LOADING / ERROR / EMPTY STATES
+   =========================================================== */
 .stateWrap {
   display: flex;
   flex-direction: column;

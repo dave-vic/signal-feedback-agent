@@ -14,15 +14,17 @@ const SOURCE_LABELS = {
   other:     'Other',
 }
 
-/** Human-readable source label, falling back to the raw key. */
 function sourceLabel(key) {
   return SOURCE_LABELS[key] || key
 }
 
-/** Priority badge — inline rather than imported, to keep the p1–p4 border styles self-contained. */
+/**
+ * Priority badge — solid fill for P1/P2, softer for P3/P4.
+ * variant drives both the color scheme and the weight of the badge.
+ */
 function PriorityBadge({ priority }) {
   if (!priority) return null
-  const variant = priority.toLowerCase()  // "p1" | "p2" | "p3" | "p4"
+  const variant = priority.toLowerCase()
   return (
     <span className={`${styles.badge} ${styles[`badge_${variant}`]}`}>
       {priority}
@@ -30,27 +32,37 @@ function PriorityBadge({ priority }) {
   )
 }
 
-/** One theme card. */
+/** One theme card — priority-aware variant class controls visual weight. */
 function ThemeCard({ theme }) {
-  const isP1       = theme.priority === 'P1'
+  const priority   = theme.priority || 'P4'
+  const variant    = priority.toLowerCase()
   const sources    = theme.sources_breakdown || {}
   const sourceKeys = Object.keys(sources).filter(k => sources[k] > 0)
-  const cardClass  = `${styles.themeCard} ${isP1 ? styles.themeCard_p1 : ''}`
+
+  const cardClass = [
+    styles.themeCard,
+    styles[`themeCard_${variant}`],
+  ].join(' ')
 
   return (
     <Link to={`/themes/${theme.id}`} className={cardClass}>
+
+      {/* Top row: badge + title */}
       <div className={styles.cardTop}>
-        <PriorityBadge priority={theme.priority} />
+        <PriorityBadge priority={priority} />
         <span className={styles.cardTitle}>{theme.title}</span>
       </div>
 
+      {/* Problem statement */}
       {theme.problem_statement && (
         <p className={styles.problemStatement}>{theme.problem_statement}</p>
       )}
 
+      {/* Footer: evidence pill + source chips */}
       <div className={styles.cardFooter}>
-        <span className={styles.evidenceCount}>
-          {theme.evidence_count} {theme.evidence_count === 1 ? 'piece' : 'pieces'} of feedback
+        <span className={`${styles.evidenceCount} ${styles[`evidenceCount_${variant}`]}`}>
+          <span className={styles.evidenceNumber}>{theme.evidence_count}</span>
+          {' '}{theme.evidence_count === 1 ? 'signal' : 'signals'}
         </span>
 
         {sourceKeys.length > 0 && (
@@ -78,7 +90,6 @@ export default function ThemesPage() {
   const [error,  setError]  = useState(null)
 
   useEffect(() => {
-    // Fetch run metadata and themes in parallel
     Promise.all([getRun(runId), getThemes(runId)])
       .then(([runData, themesData]) => {
         setRun(runData)
@@ -87,7 +98,6 @@ export default function ThemesPage() {
       .catch(err => setError(err.message))
   }, [runId])
 
-  // ---- Loading ----
   if (!run && !error) {
     return (
       <div className={styles.page}>
@@ -98,7 +108,6 @@ export default function ThemesPage() {
     )
   }
 
-  // ---- Error ----
   if (error) {
     return (
       <div className={styles.page}>
@@ -110,11 +119,10 @@ export default function ThemesPage() {
     )
   }
 
-  const counts     = run.counts || {}
-  const excluded   = counts.excluded || 0
+  const counts      = run.counts || {}
+  const excluded    = counts.excluded || 0
   const ticketCount = counts.tickets || 0
 
-  // Derive subline
   const themeWord  = themes.length === 1 ? 'theme' : 'themes'
   const ticketWord = ticketCount === 1 ? 'draft ticket' : 'draft tickets'
   const subline    = ticketCount > 0
@@ -129,9 +137,7 @@ export default function ThemesPage() {
         <div className={styles.breadcrumb}>
           <Link to="/" className={styles.breadcrumbLink}>Signal</Link>
           <span className={styles.breadcrumbSep}>/</span>
-          <Link to={`/runs/${runId}`} className={styles.breadcrumbLink}>
-            Run #{runId}
-          </Link>
+          <Link to={`/runs/${runId}`} className={styles.breadcrumbLink}>Run #{runId}</Link>
           <span className={styles.breadcrumbSep}>/</span>
           Themes
         </div>
@@ -139,14 +145,14 @@ export default function ThemesPage() {
         <p className={styles.subline}>{subline}</p>
       </div>
 
-      {/* Theme cards — backend already returns them sorted P1→P4 */}
+      {/* Theme cards — backend returns them sorted P1 → P4 */}
       <div className={styles.themeList}>
         {themes.map(theme => (
           <ThemeCard key={theme.id} theme={theme} />
         ))}
       </div>
 
-      {/* Honesty line — only shown if items were excluded */}
+      {/* Honesty line */}
       {excluded > 0 && (
         <div className={styles.honestyLine}>
           <span className={styles.honestyIcon}>○</span>
