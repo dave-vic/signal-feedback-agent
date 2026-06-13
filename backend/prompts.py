@@ -31,6 +31,8 @@ THEME_PROMPT = (
     "Group them into themes where each theme represents one distinct underlying user problem. "
     "Merge items that describe the same problem even if worded differently — they belong in one theme. "
     "Every item must appear in exactly one theme. Do not leave any items unassigned. "
+    "Create between 7 and 12 themes. Do not collapse unrelated problems into a single catch-all theme — "
+    "if items differ in root cause, they belong in separate themes. "
     "CRITICAL: only use id values from the input. Never invent, guess, or repeat an id.\n\n"
     "GROUPING RULE — when an item touches multiple topics, assign it to the theme of its PRIMARY "
     "user harm: the most fundamental thing that went wrong for the user. "
