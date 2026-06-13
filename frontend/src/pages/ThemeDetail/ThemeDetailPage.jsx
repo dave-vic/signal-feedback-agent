@@ -75,7 +75,7 @@ function EvidenceItem({ item, index }) {
       <div className={styles.evidenceBody}>
         {/* Verbatim quote */}
         <blockquote className={styles.verbatim}>
-          "{item.original_text}"
+          "{item.text}"
         </blockquote>
 
         {/* Chips row */}
@@ -199,7 +199,7 @@ export default function ThemeDetailPage() {
   const runId    = theme.run_id
   const priority = theme.priority || 'P4'
   const variant  = priority.toLowerCase()
-  const items    = theme.feedback_items || []
+  const items    = theme.items           || []
   const tickets  = theme.tickets        || []
   const sources  = theme.sources_breakdown || {}
 

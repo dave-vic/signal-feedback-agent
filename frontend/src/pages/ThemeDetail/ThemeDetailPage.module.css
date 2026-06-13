@@ -38,13 +38,13 @@
   border-left-width: 4px;
   border-left-color: var(--color-border-strong);
   border-radius: 12px;
-  padding: var(--space-6) var(--space-7);
+  padding: var(--space-7) var(--space-7) var(--space-6);
   background: var(--color-surface);
   box-shadow: 0 1px 4px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04);
   margin-bottom: var(--space-8);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 0;                  /* manual gaps per section for precision */
 }
 
 /* Priority-tinted header variants */
@@ -63,24 +63,25 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .themeTitle {
   font-family: var(--font-serif);
-  font-size: 1.6rem;
+  font-size: 1.9rem;
   font-weight: 700;
   color: var(--color-text-primary);
-  line-height: 1.25;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
   flex: 1;
   margin: 0;
 }
 
 .problemStatement {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-base);
   color: var(--color-text-secondary);
-  line-height: 1.65;
-  margin: 0;
+  line-height: 1.7;
+  margin: 0 0 var(--space-5) 0;
 }
 
 /* Priority badge */
@@ -97,7 +98,7 @@
   white-space: nowrap;
   flex-shrink: 0;
   text-transform: uppercase;
-  margin-top: 4px; /* align with first line of title */
+  margin-top: 7px; /* optical alignment with first line of larger title */
 }
 .priorityBadge_p1 { background: #DC2626; color: #fff; }
 .priorityBadge_p2 { background: #D97706; color: #fff; }
@@ -485,11 +486,11 @@
   }
 
   .themeTitle {
-    font-size: 1.3rem;
+    font-size: 1.45rem;
   }
 
   .headerCard {
-    padding: var(--space-5) var(--space-5);
+    padding: var(--space-5) var(--space-5) var(--space-5);
   }
 
   /* Evidence items: tighten layout */
@@ -521,7 +522,7 @@
   }
 
   .themeTitle {
-    font-size: 1.15rem;
+    font-size: 1.25rem;
   }
 
   .evidenceMeta {
