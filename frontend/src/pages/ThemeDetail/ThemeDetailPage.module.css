@@ -474,3 +474,64 @@
   border-color: var(--color-border-strong);
   background: var(--color-surface-subtle);
 }
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+
+@media (max-width: 768px) {
+  .page {
+    padding: var(--space-6) var(--space-5) var(--space-10);
+  }
+
+  .themeTitle {
+    font-size: 1.3rem;
+  }
+
+  .headerCard {
+    padding: var(--space-5) var(--space-5);
+  }
+
+  /* Evidence items: tighten layout */
+  .evidenceItem {
+    padding: var(--space-4) var(--space-4);
+    gap: var(--space-3);
+  }
+
+  /* Ticket cards */
+  .ticketCard {
+    padding: var(--space-4) var(--space-5);
+  }
+
+  /* Sources breakdown wraps */
+  .sourcesBreakdown {
+    gap: var(--space-2);
+  }
+
+  /* Section header: allow wrapping */
+  .sectionHeader {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-5) var(--space-4) var(--space-8);
+  }
+
+  .themeTitle {
+    font-size: 1.15rem;
+  }
+
+  .evidenceMeta {
+    flex-wrap: wrap;
+  }
+
+  /* Ticket header: stack on very small screens */
+  .ticketHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+}

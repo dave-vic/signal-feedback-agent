@@ -271,3 +271,37 @@
   color: var(--color-text-tertiary);
   margin-top: 2px;
 }
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+
+@media (max-width: 768px) {
+  .page {
+    padding: var(--space-6) var(--space-5) var(--space-10);
+  }
+
+  .headline {
+    font-size: 1.4rem;
+  }
+
+  /* 3-col steps → single column */
+  .steps {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .dropZone {
+    padding: var(--space-8) var(--space-5) var(--space-8);
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-5) var(--space-4) var(--space-8);
+  }
+
+  .headline {
+    font-size: 1.25rem;
+  }
+}

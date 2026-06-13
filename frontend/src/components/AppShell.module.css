@@ -1,5 +1,6 @@
 /* =========================================================
    AppShell — persistent sidebar + main content layout
+   Responsive: sidebar on ≥ 769px, top navbar on ≤ 768px.
    ========================================================= */
 
 .shell {
@@ -8,7 +9,10 @@
   background: var(--color-bg);
 }
 
-/* ---- Sidebar ---- */
+/* ================================================================
+   SIDEBAR (desktop / tablet ≥ 769px)
+   ================================================================ */
+
 .sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
@@ -22,6 +26,7 @@
   left: 0;
   height: 100vh;
   overflow-y: auto;
+  z-index: 100;
 }
 
 /* Wordmark at top of sidebar — mark icon + serif text */
@@ -97,18 +102,16 @@
   border-radius: 0 2px 2px 0;
 }
 
-/* Disabled nav items — future screens not yet built */
+/* Disabled nav items */
 .navItemDisabled {
   color: var(--color-text-tertiary);
   cursor: default;
   pointer-events: none;
 }
 
-.navItemDisabled:hover {
-  background: none;
-}
+.navItemDisabled:hover { background: none; }
 
-/* Small "soon" chip on disabled items */
+/* "soon" chip */
 .soonChip {
   margin-left: auto;
   font-size: 10px;
@@ -133,11 +136,9 @@
 }
 
 .navItemActive .navIcon,
-.navItem:hover .navIcon {
-  opacity: 1;
-}
+.navItem:hover .navIcon { opacity: 1; }
 
-/* Bottom of sidebar — version / env info */
+/* Bottom of sidebar */
 .sidebarFooter {
   margin-top: auto;
   padding: var(--space-5);
@@ -149,7 +150,19 @@
   color: var(--color-text-tertiary);
 }
 
-/* ---- Main content area ---- */
+/* ================================================================
+   MOBILE TOP NAVBAR (≤ 768px)
+   Hidden on desktop.
+   ================================================================ */
+
+.topbar {
+  display: none; /* shown only on mobile via media query below */
+}
+
+/* ================================================================
+   MAIN CONTENT AREA
+   ================================================================ */
+
 .main {
   margin-left: var(--sidebar-width);
   flex: 1;
@@ -158,4 +171,95 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ================================================================
+   RESPONSIVE — mobile (≤ 768px)
+   ================================================================ */
+
+@media (max-width: 768px) {
+  /* Hide desktop sidebar */
+  .sidebar { display: none; }
+
+  /* Show top navbar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 52px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 var(--space-5);
+    z-index: 200;
+  }
+
+  .topbarWordmark {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    text-decoration: none;
+  }
+
+  .topbarWordmarkText {
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    letter-spacing: -0.01em;
+  }
+
+  /* Compact nav links on the right of the top bar */
+  .topbarNav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .topbarNavItem {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius);
+    text-decoration: none;
+    transition: background var(--transition), color var(--transition);
+  }
+
+  .topbarNavItem:hover {
+    background: var(--color-surface-subtle);
+    color: var(--color-text-primary);
+  }
+
+  .topbarNavItemActive {
+    color: var(--color-text-primary);
+    background: var(--color-surface-subtle);
+  }
+
+  .topbarNavItemDisabled {
+    color: var(--color-text-tertiary);
+    pointer-events: none;
+  }
+
+  /* Main: no left margin, push down to clear topbar */
+  .main {
+    margin-left: 0;
+    padding-top: 52px;
+    align-items: flex-start; /* don't vertically center on mobile — scroll naturally */
+  }
+}
+
+/* ================================================================
+   RESPONSIVE — tablet (769px – 1024px)
+   Sidebar stays, just slightly narrower with content adjustments.
+   ================================================================ */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root { --sidebar-width: 200px; }
 }

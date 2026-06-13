@@ -140,4 +140,19 @@ button {
 .page-content {
   max-width: 860px;
   padding: var(--space-12) var(--space-10);
+  width: 100%;
+}
+
+/* ---- Global responsive resets ---- */
+img, svg { max-width: 100%; }
+
+@media (max-width: 768px) {
+  :root {
+    --font-size-display: 1.75rem;  /* 28px on mobile */
+    --font-size-2xl:     1.4rem;   /* 22px on mobile */
+  }
+
+  .page-content {
+    padding: var(--space-6) var(--space-5);
+  }
 }

@@ -311,3 +311,38 @@
   background: var(--color-surface-subtle);
   text-decoration: none;
 }
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+
+@media (max-width: 768px) {
+  .page {
+    padding: var(--space-6) var(--space-4);
+    min-height: auto;
+  }
+
+  .card,
+  .doneCard,
+  .failedCard {
+    padding: var(--space-6) var(--space-5);
+  }
+
+  /* 4-col counters → 2×2 grid */
+  .counters {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .filename {
+    white-space: normal;
+    word-break: break-all;
+  }
+}
+
+@media (max-width: 480px) {
+  .card,
+  .doneCard,
+  .failedCard {
+    padding: var(--space-5) var(--space-4);
+  }
+}
