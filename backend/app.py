@@ -241,12 +241,18 @@ def get_themes(run_id):
             "title": t.title,
             "problem_statement": t.problem_statement,
             "priority": t.priority,
+            "rationale": t.rationale,
             "evidence_count": len(item_ids),
             "sources_breakdown": sources,
         })
 
-    # Sort by evidence count descending until priority is available
-    result.sort(key=lambda t: t["evidence_count"], reverse=True)
+    # Sort by priority (P1 first), then by evidence count within each band.
+    # Themes with no priority yet (null) go last.
+    priority_order = {"P1": 0, "P2": 1, "P3": 2, "P4": 3}
+    result.sort(key=lambda t: (
+        priority_order.get(t["priority"], 99),
+        -t["evidence_count"],
+    ))
 
     return jsonify({"run_id": run_id, "themes": result})
 

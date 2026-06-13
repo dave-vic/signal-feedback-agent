@@ -17,7 +17,9 @@ import requests
 from datetime import datetime, timezone
 
 from models import db, PipelineRun, FeedbackItem, AuditEvent, Theme
-from prompts import TRIAGE_PROMPT, TRIAGE_RETRY_PROMPT, THEME_PROMPT, THEME_RETRY_PROMPT, THEME_ORPHAN_PROMPT
+from prompts import (TRIAGE_PROMPT, TRIAGE_RETRY_PROMPT,
+                     THEME_PROMPT, THEME_RETRY_PROMPT, THEME_ORPHAN_PROMPT,
+                     PRIORITY_PROMPT, PRIORITY_RETRY_PROMPT)
 
 logger = logging.getLogger(__name__)
 
@@ -692,19 +694,213 @@ def _recover_orphans(app, run_id: int, orphan_ids: set,
 
 
 # ---------------------------------------------------------------------------
-# Top-level: run the full pipeline (Stages 0, 1, and 2)
+# Stage 3: PRIORITIZATION
+# ---------------------------------------------------------------------------
+
+VALID_PRIORITIES = {"P1", "P2", "P3", "P4"}
+DEFAULT_PRIORITY = "P3"   # safe fallback if validation fails after retry
+
+
+def run_prioritization(app, run_id: int):
+    """
+    Stage 3: score each theme P1–P4 using qwen-max.
+
+    Sends all themes for this run in one call (there are typically 8–12).
+    Validates that every returned priority is exactly P1/P2/P3/P4 and that
+    every rationale is a non-empty string.
+    Retries once with a corrective prompt if any entry is invalid.
+    On second failure for a theme: defaults to P3 and logs it.
+    Writes priority and rationale back to each Theme row.
+    """
+    _update_run(app, run_id, status="prioritizing")
+
+    with app.app_context():
+        themes = Theme.query.filter_by(run_id=run_id).order_by(Theme.id).all()
+        # Build lookup by DB id for writing results back
+        themes_by_id = {t.id: t for t in themes}
+
+    if not themes:
+        _write_audit(app, run_id, "prioritization", "skipped",
+                     {"reason": "no themes to prioritize"})
+        return
+
+    # Build payload — evidence_count derived from item_ids length
+    payload = []
+    for t in themes:
+        item_ids = json.loads(t.item_ids or "[]")
+        sources = json.loads(t.sources_breakdown or "{}")
+        payload.append({
+            "id": t.id,
+            "title": t.title,
+            "problem_statement": t.problem_statement,
+            "evidence_count": len(item_ids),
+            "sources_breakdown": sources,
+        })
+
+    messages = [
+        {"role": "system", "content": PRIORITY_PROMPT},
+        {"role": "user", "content": json.dumps(payload)},
+    ]
+
+    # --- First attempt ---
+    try:
+        raw_response = _call_qwen(messages, THEME_MODEL)
+        reply_text = _extract_text(raw_response)
+        usage = _extract_usage(raw_response)
+    except requests.RequestException as e:
+        _write_audit(app, run_id, "prioritization", "api_error", {"error": str(e)})
+        raise
+
+    try:
+        parsed = json.loads(reply_text)
+        if not isinstance(parsed, list):
+            raise ValueError("Response is not a JSON array")
+    except (json.JSONDecodeError, ValueError) as e:
+        _write_audit(app, run_id, "prioritization", "parse_error",
+                     {"error": str(e), "raw_reply": reply_text},
+                     model=THEME_MODEL, **usage)
+        raise RuntimeError(f"Prioritization: could not parse model response: {e}")
+
+    # Validate each entry
+    results, bad_entries = _validate_priority_response(parsed, set(themes_by_id.keys()))
+
+    # --- Corrective retry if anything was invalid ---
+    if bad_entries:
+        logger.warning("Prioritization: invalid entries %s, retrying", bad_entries)
+        bad_desc = "; ".join(
+            f"theme id {e['id']}: priority='{e.get('priority', 'missing')}'"
+            for e in bad_entries
+        )
+        retry_messages = messages + [
+            {"role": "assistant", "content": reply_text},
+            {"role": "user", "content": PRIORITY_RETRY_PROMPT.format(
+                bad_output=reply_text,
+                bad_entries=bad_desc,
+            )},
+        ]
+        try:
+            raw_response = _call_qwen(retry_messages, THEME_MODEL)
+            reply_text = _extract_text(raw_response)
+            usage = _extract_usage(raw_response)
+            parsed = json.loads(reply_text)
+            results, bad_entries = _validate_priority_response(parsed, set(themes_by_id.keys()))
+        except (requests.RequestException, json.JSONDecodeError) as e:
+            _write_audit(app, run_id, "prioritization", "retry_error",
+                         {"error": str(e)}, model=THEME_MODEL, **usage)
+            # Fall through — results holds whatever was valid
+
+        # Anything still invalid after retry gets defaulted to P3
+        if bad_entries:
+            defaulted_ids = [e["id"] for e in bad_entries if "id" in e]
+            for theme_id in defaulted_ids:
+                if theme_id in themes_by_id:
+                    results.append({
+                        "id": theme_id,
+                        "priority": DEFAULT_PRIORITY,
+                        "rationale": "Priority could not be determined; defaulted to P3.",
+                    })
+            _write_audit(app, run_id, "prioritization", "defaulted_to_p3", {
+                "theme_ids": defaulted_ids,
+                "reason": "Invalid priority value after retry",
+            }, model=THEME_MODEL, **usage)
+            logger.error(
+                "Prioritization run %d: defaulted %d theme(s) to P3 after retry failure",
+                run_id, len(defaulted_ids),
+            )
+
+    # --- Write priority and rationale back to Theme rows ---
+    with app.app_context():
+        for entry in results:
+            theme = db.session.get(Theme, entry["id"])
+            if theme is None:
+                continue
+            theme.priority = entry["priority"]
+            theme.rationale = entry["rationale"]
+        db.session.commit()
+
+    _write_audit(app, run_id, "prioritization", "prioritization_complete", {
+        "themes_scored": len(results),
+        "priority_breakdown": _count_priorities(results),
+    }, model=THEME_MODEL,
+       tokens_in=usage.get("tokens_in"),
+       tokens_out=usage.get("tokens_out"))
+
+    logger.info(
+        "Prioritization complete: %s",
+        _count_priorities(results),
+    )
+
+
+def _validate_priority_response(parsed: list, valid_theme_ids: set) -> tuple[list, list]:
+    """
+    Check a parsed prioritization response.
+    Returns (valid_results, bad_entries) where:
+      - valid_results: list of dicts that passed all checks
+      - bad_entries:   list of dicts that failed (missing keys, bad priority, empty rationale)
+    """
+    valid = []
+    bad = []
+    seen_ids = set()
+
+    for entry in parsed:
+        if not isinstance(entry, dict):
+            bad.append(entry)
+            continue
+
+        theme_id = entry.get("id")
+        priority = entry.get("priority", "")
+        rationale = entry.get("rationale", "")
+
+        try:
+            theme_id = int(theme_id)
+        except (TypeError, ValueError):
+            bad.append(entry)
+            continue
+
+        if theme_id not in valid_theme_ids:
+            bad.append(entry)
+            continue
+        if theme_id in seen_ids:
+            continue   # duplicate — silently skip, first entry wins
+        if priority not in VALID_PRIORITIES:
+            bad.append(entry)
+            continue
+        if not isinstance(rationale, str) or not rationale.strip():
+            bad.append(entry)
+            continue
+
+        seen_ids.add(theme_id)
+        valid.append({"id": theme_id, "priority": priority, "rationale": rationale.strip()})
+
+    return valid, bad
+
+
+def _count_priorities(results: list) -> dict:
+    """Return a count of how many themes landed at each priority level."""
+    counts = {"P1": 0, "P2": 0, "P3": 0, "P4": 0}
+    for r in results:
+        p = r.get("priority")
+        if p in counts:
+            counts[p] += 1
+    return counts
+
+
+# ---------------------------------------------------------------------------
+# Top-level: run the full pipeline (Stages 0, 1, 2, and 3)
 # ---------------------------------------------------------------------------
 
 def run_pipeline(app, run_id: int, filepath: str):
     """
     Entry point called by app.py in a background thread.
-    Runs Stage 0 (ingest), Stage 1 (triage), Stage 2 (theme synthesis).
+    Runs Stage 0 (ingest), Stage 1 (triage), Stage 2 (theme synthesis),
+    Stage 3 (prioritization).
     Sets run status to awaiting_review on success, failed on error.
     """
     try:
         run_ingest(app, run_id, filepath)
         run_triage(app, run_id)
         run_theme_synthesis(app, run_id)
+        run_prioritization(app, run_id)
         _update_run(app, run_id,
                     status="awaiting_review",
                     finished_at=datetime.now(timezone.utc))

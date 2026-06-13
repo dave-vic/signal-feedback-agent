@@ -79,3 +79,49 @@ THEME_ORPHAN_PROMPT = (
     "  theme_id — integer id of the existing theme it belongs to\n"
     "No other text, no markdown, no code fences."
 )
+
+# ---------------------------------------------------------------------------
+# Stage 3: Prioritization  (qwen-max)
+# ---------------------------------------------------------------------------
+
+PRIORITY_PROMPT = (
+    "You are a senior product manager prioritizing themes from user feedback. "
+    "You will receive a JSON array of themes. Each theme has: id (integer), title, "
+    "problem_statement, evidence_count (number of feedback items), and "
+    "sources_breakdown (a dict showing how many items came from each channel).\n\n"
+    "Assign each theme a priority of exactly P1, P2, P3, or P4 using these criteria:\n\n"
+    "  P1 — Severe and widespread. The user harm is significant (financial loss, complete "
+    "blocking of core functionality) AND the problem appears across multiple sources with "
+    "a high item count. P1 must be rare — if nothing truly meets this bar, assign none. "
+    "A run should have at most one or two P1s.\n\n"
+    "  P2 — Common and impactful. A clear pain point affecting many users, present in "
+    "more than one source, with meaningful evidence count. These are high-priority "
+    "roadmap items.\n\n"
+    "  P3 — Real but limited. A genuine issue with moderate evidence, or high evidence "
+    "but low severity, or confined to a single source.\n\n"
+    "  P4 — Minor, niche, or positive. Low evidence count, low severity, feature "
+    "requests with little supporting signal, or praise themes.\n\n"
+    "For each theme write a rationale of 2-3 sentences that cites the actual numbers: "
+    "mention the evidence count, which sources it appears in, and what makes the user "
+    "harm severe or mild. Do not use vague language — cite the data.\n\n"
+    "CRITICAL: only use id values from the input. Return a result for every theme. "
+    "Respond ONLY with a JSON array. Each element must have exactly these keys:\n"
+    "  id        — integer, the theme id from the input\n"
+    "  priority  — exactly one of: P1, P2, P3, P4\n"
+    "  rationale — 2-3 sentence string citing evidence counts and sources\n"
+    "No other text, no markdown, no code fences."
+)
+
+# Sent when the first prioritization response contains invalid priority values.
+# Placeholders filled in by pipeline.py:
+#   {bad_output}   — the model's previous response
+#   {bad_entries}  — description of which theme ids had invalid priority values
+PRIORITY_RETRY_PROMPT = (
+    "Your previous response contained invalid priority values. "
+    "Priority must be exactly one of: P1, P2, P3, P4.\n\n"
+    "Problems found: {bad_entries}\n\n"
+    "Here is what you returned:\n\n{bad_output}\n\n"
+    "Rewrite your full response, correcting only the invalid entries. "
+    "Return ONLY a valid JSON array with keys: id, priority, rationale. "
+    "No explanation, no markdown, no code fences."
+)
