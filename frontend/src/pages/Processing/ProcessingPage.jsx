@@ -4,65 +4,69 @@ import { getRun } from '../../api.js'
 import styles from './ProcessingPage.module.css'
 
 // ---------------------------------------------------------------------------
-// Pipeline stage definitions — in order.
-// Each stage has a display label and the backend status value that means
-// "this stage is currently active."
+// Stage definitions — in pipeline order.
+// activeStatus is the backend status string that means "this stage is running."
 // ---------------------------------------------------------------------------
 const STAGES = [
-  { key: 'ingest',    label: 'Ingesting feedback',   activeStatus: 'ingesting'    },
-  { key: 'triage',    label: 'Triaging items',        activeStatus: 'triaging'     },
-  { key: 'theme',     label: 'Finding themes',        activeStatus: 'theming'      },
-  { key: 'priority',  label: 'Prioritizing themes',   activeStatus: 'prioritizing' },
-  { key: 'draft',     label: 'Drafting tickets',      activeStatus: 'drafting'     },
+  { key: 'ingest',   label: 'Ingesting feedback',  activeStatus: 'ingesting'    },
+  { key: 'triage',   label: 'Triaging items',       activeStatus: 'triaging'     },
+  { key: 'theme',    label: 'Finding themes',       activeStatus: 'theming'      },
+  { key: 'priority', label: 'Prioritizing themes',  activeStatus: 'prioritizing' },
+  { key: 'draft',    label: 'Drafting tickets',     activeStatus: 'drafting'     },
 ]
 
-// The order of statuses through the pipeline, used to decide which stages
-// are "complete" (everything before the active one).
-const STATUS_ORDER = ['ingesting', 'triaging', 'theming', 'prioritizing', 'drafting']
-const TERMINAL_STATUSES = new Set(['awaiting_review', 'complete', 'failed'])
+const STATUS_ORDER    = ['ingesting', 'triaging', 'theming', 'prioritizing', 'drafting']
+const TERMINAL        = new Set(['awaiting_review', 'complete', 'failed'])
 
-/**
- * Given the run's current status, return the display state for each stage:
- * 'pending' | 'active' | 'complete'
- */
+/** Return 'pending' | 'active' | 'complete' for each stage given run status. */
 function deriveStageStates(status) {
   if (status === 'awaiting_review' || status === 'complete') {
-    // All stages complete
     return STAGES.map(() => 'complete')
   }
   if (status === 'failed') {
-    // Unknown which stage failed — leave all pending
     return STAGES.map(() => 'pending')
   }
-
-  const activeIndex = STATUS_ORDER.indexOf(status)
+  const activeIdx = STATUS_ORDER.indexOf(status)
   return STAGES.map((_, i) => {
-    if (i < activeIndex)  return 'complete'
-    if (i === activeIndex) return 'active'
+    if (i < activeIdx)  return 'complete'
+    if (i === activeIdx) return 'active'
     return 'pending'
   })
 }
 
-// ---------------------------------------------------------------------------
-// Counter chips — shown below the checklist.
-// Each counter has a label and a key from the run's `counts` object.
-// Only rendered once the value exists (not zero).
-// ---------------------------------------------------------------------------
+// Live counter definitions — key maps to run.counts object
 const COUNTERS = [
-  { key: 'items_total', label: 'items ingested' },
-  { key: 'excluded',    label: 'excluded as noise' },
-  { key: 'themes',      label: 'themes found' },
-  { key: 'tickets',     label: 'tickets drafted' },
+  { key: 'items_total', label: 'items' },
+  { key: 'excluded',    label: 'excluded' },
+  { key: 'themes',      label: 'themes' },
+  { key: 'tickets',     label: 'tickets' },
 ]
 
 // ---------------------------------------------------------------------------
-// Stage icon — three visual states
+// StagePill — renders one stage row as a tinted pill.
+// pending = grey, active = blue + spinner, complete = green + checkmark.
 // ---------------------------------------------------------------------------
-function StageIcon({ state }) {
-  const cls = `${styles.stageIcon} ${styles[`stageIcon_${state}`]}`
-  if (state === 'complete') return <div className={cls}>✓</div>
-  if (state === 'active')   return <div className={cls}>◉</div>
-  return <div className={cls} />
+function StagePill({ label, state }) {
+  const pillCls  = `${styles.stagePill} ${styles[`stagePill_${state}`]}`
+  const labelCls = `${styles.pillLabel} ${styles[`pillLabel_${state}`]}`
+
+  let icon
+  if (state === 'complete') {
+    icon = <span className={`${styles.pillIcon} ${styles.pillIcon_complete}`}>✓</span>
+  } else if (state === 'active') {
+    icon = <div className={styles.spinner} />
+  } else {
+    icon = <span className={`${styles.pillIcon} ${styles.pillIcon_pending}`}>○</span>
+  }
+
+  return (
+    <div className={pillCls}>
+      {icon}
+      <span className={labelCls}>
+        {label}{state === 'active' ? '…' : ''}
+      </span>
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -70,31 +74,20 @@ function StageIcon({ state }) {
 // ---------------------------------------------------------------------------
 export default function ProcessingPage() {
   const { runId } = useParams()
-  const [run, setRun] = useState(null)
+  const [run,   setRun]   = useState(null)
   const [error, setError] = useState(null)
   const intervalRef = useRef(null)
 
-  function startPolling() {
-    // Poll immediately, then every 2 seconds.
-    fetchRun()
-    intervalRef.current = setInterval(fetchRun, 2000)
-  }
-
   function stopPolling() {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
+    clearInterval(intervalRef.current)
+    intervalRef.current = null
   }
 
   async function fetchRun() {
     try {
       const data = await getRun(runId)
       setRun(data)
-      // Stop polling once we hit a terminal state
-      if (TERMINAL_STATUSES.has(data.status)) {
-        stopPolling()
-      }
+      if (TERMINAL.has(data.status)) stopPolling()
     } catch (err) {
       setError(err.message)
       stopPolling()
@@ -102,27 +95,28 @@ export default function ProcessingPage() {
   }
 
   useEffect(() => {
-    startPolling()
-    return stopPolling  // clean up on unmount
+    fetchRun()
+    intervalRef.current = setInterval(fetchRun, 2000)
+    return stopPolling
   }, [runId])
 
-  // --- Loading state (before first poll returns) ---
+  // Loading (first poll not back yet)
   if (!run && !error) {
     return (
       <div className={styles.page}>
         <div className={styles.card}>
-          <div className={styles.runLabel}>Starting pipeline…</div>
+          <div className={styles.runLabel}>Connecting…</div>
         </div>
       </div>
     )
   }
 
-  // --- Fetch error (backend unreachable etc.) ---
+  // Network / fetch error
   if (error) {
     return (
       <div className={styles.page}>
         <div className={styles.failedCard}>
-          <div className={styles.failedIcon}>✕</div>
+          <div className={styles.failedIconWrap}>✕</div>
           <div className={styles.failedHeadline}>Couldn't reach the backend</div>
           <div className={styles.failedDetail}>{error}</div>
           <Link to="/" className={styles.backLink}>← Back to upload</Link>
@@ -131,16 +125,15 @@ export default function ProcessingPage() {
     )
   }
 
-  const counts  = run.counts || {}
-  const status  = run.status
-  const stages  = deriveStageStates(status)
+  const counts = run.counts || {}
+  const status = run.status
 
-  // --- Terminal: failed ---
+  // Terminal: failed
   if (status === 'failed') {
     return (
       <div className={styles.page}>
         <div className={styles.failedCard}>
-          <div className={styles.failedIcon}>✕</div>
+          <div className={styles.failedIconWrap}>✕</div>
           <div className={styles.failedHeadline}>Something went wrong</div>
           <div className={styles.failedDetail}>
             The pipeline failed while processing <strong>{run.filename}</strong>.
@@ -153,23 +146,21 @@ export default function ProcessingPage() {
     )
   }
 
-  // --- Terminal: done ---
+  // Terminal: done
   if (status === 'awaiting_review' || status === 'complete') {
     const parts = []
     if (counts.items_total) parts.push(`${counts.items_total} items`)
     if (counts.themes)      parts.push(`${counts.themes} themes`)
     if (counts.tickets)     parts.push(`${counts.tickets} draft tickets`)
-    const summary = parts.join(' → ')
 
     return (
       <div className={styles.page}>
         <div className={styles.doneCard}>
-          <div className={styles.doneIcon}>✓</div>
+          <div className={styles.doneIconWrap}>✓</div>
           <div className={styles.doneHeadline}>Ready for review.</div>
-          {summary && (
-            <div className={styles.doneSummary}>{summary}</div>
+          {parts.length > 0 && (
+            <div className={styles.doneSummary}>{parts.join(' → ')}</div>
           )}
-          {/* Links to themes screen — placeholder path, we'll wire it properly next */}
           <Link to={`/runs/${runId}/themes`} className={styles.doneCta}>
             View themes and tickets →
           </Link>
@@ -178,37 +169,33 @@ export default function ProcessingPage() {
     )
   }
 
-  // --- In-progress: the live checklist ---
+  // In-progress: live checklist
+  const stageStates = deriveStageStates(status)
+
   return (
     <div className={styles.page}>
       <div className={styles.card}>
 
-        {/* Header */}
         <div className={styles.cardHeader}>
           <div className={styles.runLabel}>Run #{runId} · Processing</div>
           <div className={styles.filename}>{run.filename}</div>
         </div>
 
-        {/* Stage checklist */}
         <div className={styles.stages}>
-          {STAGES.map((stage, i) => {
-            const state = stages[i]
-            return (
-              <div key={stage.key} className={styles.stageRow}>
-                <StageIcon state={state} />
-                <span className={`${styles.stageLabel} ${styles[`stageLabel_${state}`]}`}>
-                  {stage.label}
-                  {state === 'active' && '…'}
-                </span>
-              </div>
-            )
-          })}
+          {STAGES.map((stage, i) => (
+            <StagePill
+              key={stage.key}
+              label={stage.label}
+              state={stageStates[i]}
+            />
+          ))}
         </div>
 
-        {/* Live counters — only show a counter once its value exists */}
+        <div className={styles.divider} />
+
         <div className={styles.counters}>
           {COUNTERS.map(c => {
-            const val = counts[c.key]
+            const val      = counts[c.key]
             const hasValue = val !== undefined && val !== null
             return (
               <div key={c.key} className={styles.counter}>
