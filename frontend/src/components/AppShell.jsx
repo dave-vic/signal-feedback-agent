@@ -1,4 +1,4 @@
-import { NavLink, useParams } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import styles from './AppShell.module.css'
 
 /**
@@ -32,8 +32,11 @@ function SignalMark({ size = 22 }) {
 }
 
 export default function AppShell({ children }) {
-  const params = useParams()
-  const runId  = params.runId || null
+  const { pathname } = useLocation()
+  // Extract runId from any /runs/:runId/* URL — AppShell sits outside Routes
+  // so useParams() is always empty here. Parse the path directly instead.
+  const runIdMatch = pathname.match(/^\/runs\/(\d+)/)
+  const runId = runIdMatch ? runIdMatch[1] : null
 
   return (
     <div className={styles.shell}>
@@ -73,6 +76,18 @@ export default function AppShell({ children }) {
             <span className={`${styles.topbarNavItem} ${styles.topbarNavItemDisabled}`}>
               ◈ Themes
             </span>
+          )}
+
+          {/* Approval queue — live when runId present */}
+          {runId && (
+            <NavLink
+              to={`/runs/${runId}/tickets`}
+              className={({ isActive }) =>
+                `${styles.topbarNavItem} ${isActive ? styles.topbarNavItemActive : ''}`
+              }
+            >
+              ✓ Queue
+            </NavLink>
           )}
         </nav>
       </header>
@@ -120,11 +135,23 @@ export default function AppShell({ children }) {
           </div>
         )}
 
-        <div className={`${styles.navItem} ${styles.navItemDisabled}`}>
-          <span className={styles.navIcon}>✓</span>
-          Approval queue
-          <span className={styles.soonChip}>soon</span>
-        </div>
+        {runId ? (
+          <NavLink
+            to={`/runs/${runId}/tickets`}
+            className={({ isActive }) =>
+              `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+            }
+          >
+            <span className={styles.navIcon}>✓</span>
+            Approval queue
+          </NavLink>
+        ) : (
+          <div className={`${styles.navItem} ${styles.navItemDisabled}`}>
+            <span className={styles.navIcon}>✓</span>
+            Approval queue
+            <span className={styles.soonChip}>soon</span>
+          </div>
+        )}
 
         <div className={`${styles.navItem} ${styles.navItemDisabled}`}>
           <span className={styles.navIcon}>≡</span>
