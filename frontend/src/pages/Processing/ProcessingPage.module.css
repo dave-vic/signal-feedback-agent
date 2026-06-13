@@ -1,0 +1,290 @@
+/* =========================================================
+   Processing Page — "watch the agent think"
+   ========================================================= */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-12) var(--space-10);
+  width: 100%;
+}
+
+/* ---- Main card ---- */
+.card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-8);
+}
+
+/* ---- Header inside card ---- */
+.cardHeader {
+  margin-bottom: var(--space-8);
+}
+
+.runLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-2);
+}
+
+.filename {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Stage checklist ---- */
+.stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: var(--space-8);
+}
+
+.stageRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  position: relative;
+}
+
+/* Connector line between stages */
+.stageRow:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 11px;            /* centre of the 24px icon */
+  top: calc(var(--space-3) + 24px);
+  width: 1px;
+  height: calc(var(--space-3) * 2 - 4px);
+  background: var(--color-border);
+}
+
+/* The round icon */
+.stageIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.stageIcon_pending {
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border-strong);
+  color: transparent;
+}
+
+.stageIcon_active {
+  background: var(--color-text-primary);
+  border: 1.5px solid var(--color-text-primary);
+  color: var(--color-surface);
+}
+
+.stageIcon_complete {
+  background: #F0FDF4;
+  border: 1.5px solid #BBF7D0;
+  color: var(--color-success);
+}
+
+/* Pulse animation on the active icon */
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(17,17,17,0.15); }
+  50%       { box-shadow: 0 0 0 5px rgba(17,17,17,0); }
+}
+
+.stageIcon_active {
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+/* Stage label */
+.stageLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: color var(--transition);
+}
+
+.stageLabel_pending  { color: var(--color-text-tertiary); }
+.stageLabel_active   { color: var(--color-text-primary); }
+.stageLabel_complete { color: var(--color-text-secondary); }
+
+/* ---- Live counters ---- */
+.counters {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.counter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 80px;
+  padding: var(--space-3) var(--space-2);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.counterValue {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1;
+  margin-bottom: var(--space-1);
+  /* Animate in when value changes */
+  transition: opacity 300ms ease;
+}
+
+.counterValue_empty {
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+  font-size: var(--font-size-base);
+}
+
+.counterLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+/* ---- Terminal: Done state ---- */
+.doneCard {
+  width: 100%;
+  max-width: 520px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.doneIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #F0FDF4;
+  border: 1.5px solid #BBF7D0;
+  color: var(--color-success);
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4);
+}
+
+.doneHeadline {
+  font-family: var(--font-serif);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.doneSummary {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-8);
+}
+
+.doneCta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  border-radius: var(--radius);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--transition);
+}
+
+.doneCta:hover {
+  background: var(--color-accent-hover);
+  text-decoration: none;
+}
+
+/* ---- Terminal: Failed state ---- */
+.failedCard {
+  width: 100%;
+  max-width: 520px;
+  background: var(--color-surface);
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.failedIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-danger-light);
+  border: 1.5px solid #FECACA;
+  color: var(--color-danger);
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4);
+}
+
+.failedHeadline {
+  font-family: var(--font-serif);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.failedDetail {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-6);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.backLink:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-subtle);
+  text-decoration: none;
+}
