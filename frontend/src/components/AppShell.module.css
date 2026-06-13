@@ -37,7 +37,12 @@
   padding: 0 var(--space-5) var(--space-6);
   border-bottom: 1px solid var(--color-border);
   margin-bottom: var(--space-4);
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity var(--transition);
 }
+
+.wordmark:hover { opacity: 0.75; }
 
 .wordmarkIcon {
   flex-shrink: 0;

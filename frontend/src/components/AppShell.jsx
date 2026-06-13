@@ -351,10 +351,10 @@ export default function AppShell({ children }) {
           DESKTOP SIDEBAR — visible only on ≥ 769px via CSS
           ================================================================ */}
       <aside className={styles.sidebar}>
-        <div className={styles.wordmark}>
+        <NavLink to="/" className={styles.wordmark}>
           <SignalMark size={22} />
           <span className={styles.wordmarkText}>Signal</span>
-        </div>
+        </NavLink>
 
         {/* Workspace section */}
         <div className={styles.navLabel}>Workspace</div>
