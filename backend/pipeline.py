@@ -17,7 +17,7 @@ import requests
 from datetime import datetime, timezone
 
 from models import db, PipelineRun, FeedbackItem, AuditEvent, Theme
-from prompts import TRIAGE_PROMPT, TRIAGE_RETRY_PROMPT, THEME_PROMPT, THEME_RETRY_PROMPT
+from prompts import TRIAGE_PROMPT, TRIAGE_RETRY_PROMPT, THEME_PROMPT, THEME_RETRY_PROMPT, THEME_ORPHAN_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -547,6 +547,7 @@ def run_theme_synthesis(app, run_id: int):
 
     # --- Write Theme rows ---
     themes_created = 0
+    written_theme_rows = []   # keep references for orphan recovery below
     with app.app_context():
         for theme_data in themes:
             sources = _compute_sources_breakdown(theme_data["item_ids"], items_by_id)
@@ -560,6 +561,11 @@ def run_theme_synthesis(app, run_id: int):
             )
             db.session.add(theme)
             themes_created += 1
+
+        db.session.commit()
+
+        # Reload with real DB ids now that commit has assigned them
+        written_theme_rows = Theme.query.filter_by(run_id=run_id).all()
 
         # Update the counts on the run
         run = db.session.get(PipelineRun, run_id)
@@ -575,7 +581,114 @@ def run_theme_synthesis(app, run_id: int):
        tokens_in=usage.get("tokens_in"),
        tokens_out=usage.get("tokens_out"))
 
+    # --- Orphan recovery ---
+    # Find any non-excluded items that didn't end up in any theme.
+    # This can happen when hallucinated ids are dropped during validation.
+    assigned_ids = set()
+    for t in written_theme_rows:
+        assigned_ids.update(json.loads(t.item_ids or "[]"))
+    orphan_ids = valid_ids - assigned_ids
+
+    if orphan_ids:
+        logger.warning("Theme synthesis: %d orphaned items found, recovering", len(orphan_ids))
+        _recover_orphans(app, run_id, orphan_ids, written_theme_rows, items_by_id)
+
     logger.info("Theme synthesis complete: %d themes from %d items", themes_created, len(items))
+
+
+def _recover_orphans(app, run_id: int, orphan_ids: set,
+                     theme_rows: list, items_by_id: dict):
+    """
+    Assign orphaned items (those not in any theme) to existing themes via a
+    targeted qwen-max call. Each orphan is assigned to exactly one existing theme.
+    Updates the Theme rows in the DB and writes an audit event.
+    Falls back to assigning orphans to the largest existing theme if the call fails.
+    """
+    orphan_items = [
+        {
+            "id": item_id,
+            "category": items_by_id[item_id].category,
+            "summary": items_by_id[item_id].summary,
+        }
+        for item_id in sorted(orphan_ids)
+        if item_id in items_by_id
+    ]
+    existing_themes = [
+        {"id": t.id, "title": t.title, "problem_statement": t.problem_statement}
+        for t in theme_rows
+    ]
+
+    valid_theme_ids = {t.id for t in theme_rows}
+    valid_orphan_ids = {item["id"] for item in orphan_items}
+
+    messages = [
+        {"role": "system", "content": THEME_ORPHAN_PROMPT.format(
+            existing_themes=json.dumps(existing_themes, indent=2),
+            orphan_items=json.dumps(orphan_items, indent=2),
+        )},
+        {"role": "user", "content": "Assign each unassigned item to its best existing theme."},
+    ]
+
+    assignments = []
+    try:
+        raw_response = _call_qwen(messages, THEME_MODEL)
+        reply_text = _extract_text(raw_response)
+        usage = _extract_usage(raw_response)
+        parsed = json.loads(reply_text)
+
+        # Validate: each entry must have item_id in orphan set, theme_id in existing set
+        for entry in parsed:
+            if not isinstance(entry, dict):
+                continue
+            item_id = entry.get("item_id")
+            theme_id = entry.get("theme_id")
+            try:
+                item_id, theme_id = int(item_id), int(theme_id)
+            except (TypeError, ValueError):
+                continue
+            if item_id in valid_orphan_ids and theme_id in valid_theme_ids:
+                assignments.append((item_id, theme_id))
+
+    except (requests.RequestException, json.JSONDecodeError, TypeError) as e:
+        logger.error("Orphan recovery call failed: %s — falling back to largest theme", e)
+        usage = {}
+        # Fallback: assign all orphans to the theme with the most items
+        largest = max(theme_rows, key=lambda t: len(json.loads(t.item_ids or "[]")))
+        assignments = [(oid, largest.id) for oid in orphan_ids if oid in items_by_id]
+
+    if not assignments:
+        # Nothing came back valid — use the fallback
+        largest = max(theme_rows, key=lambda t: len(json.loads(t.item_ids or "[]")))
+        assignments = [(oid, largest.id) for oid in orphan_ids if oid in items_by_id]
+
+    # Apply assignments: append each orphan id to its target theme's item_ids list
+    with app.app_context():
+        # Group assignments by theme_id for efficiency
+        by_theme: dict[int, list] = {}
+        for item_id, theme_id in assignments:
+            by_theme.setdefault(theme_id, []).append(item_id)
+
+        for theme_id, new_ids in by_theme.items():
+            theme = db.session.get(Theme, theme_id)
+            if theme is None:
+                continue
+            existing = json.loads(theme.item_ids or "[]")
+            merged = existing + new_ids
+            theme.item_ids = json.dumps(merged)
+            # Recompute sources breakdown
+            all_ids = merged
+            sources = _compute_sources_breakdown(all_ids, items_by_id)
+            theme.sources_breakdown = json.dumps(sources)
+
+        db.session.commit()
+
+    _write_audit(app, run_id, "theme_synthesis", "orphans_recovered", {
+        "orphan_count": len(orphan_ids),
+        "orphan_ids": list(orphan_ids),
+        "assignments": [{"item_id": i, "theme_id": t} for i, t in assignments],
+    }, model=THEME_MODEL,
+       tokens_in=usage.get("tokens_in"),
+       tokens_out=usage.get("tokens_out"))
 
 
 # ---------------------------------------------------------------------------
