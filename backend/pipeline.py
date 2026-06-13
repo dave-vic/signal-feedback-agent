@@ -1,10 +1,11 @@
 """
-Signal — Agent pipeline (Stages 0, 1, 2, and 3)
-=================================================
+Signal — Agent pipeline (Stages 0–4)
+=====================================
 Stage 0: INGEST            — parse CSV into FeedbackItem rows
 Stage 1: TRIAGE            — classify items with qwen-turbo, mark exclusions, audit everything
 Stage 2: THEME SYNTHESIS   — group items into themes with qwen-max, validate evidence chain
 Stage 3: PRIORITIZATION    — score themes P1-P4 with qwen-max, write rationale
+Stage 4: TICKET DRAFTING   — draft sprint-ready tickets for P1/P2 themes with qwen-max
 
 This module has no Flask imports. It's pure Python that talks to the database
 and the Qwen API. app.py calls run_pipeline() in a background thread.
@@ -20,7 +21,8 @@ from datetime import datetime, timezone
 from models import db, PipelineRun, FeedbackItem, AuditEvent, Theme
 from prompts import (TRIAGE_PROMPT, TRIAGE_RETRY_PROMPT,
                      THEME_PROMPT, THEME_RETRY_PROMPT, THEME_ORPHAN_PROMPT,
-                     PRIORITY_PROMPT, PRIORITY_RETRY_PROMPT)
+                     PRIORITY_PROMPT, PRIORITY_RETRY_PROMPT,
+                     TICKET_PROMPT, TICKET_RETRY_PROMPT)
 
 logger = logging.getLogger(__name__)
 
@@ -1086,14 +1088,238 @@ def _count_priorities(results: list) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Top-level: run the full pipeline (Stages 0, 1, 2, and 3)
+# Stage 4: TICKET DRAFTING
+# ---------------------------------------------------------------------------
+
+VALID_SEVERITIES = {"critical", "high", "medium", "low"}
+TICKET_EVIDENCE_SAMPLES = 5   # verbatim feedback items to include per theme
+
+
+def run_ticket_drafting(app, run_id: int):
+    """
+    Stage 4: draft sprint-ready tickets for all P1 and P2 themes.
+
+    Sends each qualifying theme with its title, problem_statement, priority,
+    rationale, evidence_count, and up to TICKET_EVIDENCE_SAMPLES verbatim
+    feedback items to qwen-max.
+
+    Validates the response (theme_id, title, user_story, acceptance_criteria,
+    severity). Retries once on validation failure. On second failure for a
+    theme: skips it and logs — bad tickets are never written.
+
+    Writes DraftTicket rows with status=pending_review and one AuditEvent.
+    """
+    _update_run(app, run_id, status="drafting")
+
+    # Load P1 and P2 themes as plain dicts — same session-safety pattern
+    with app.app_context():
+        qualifying = (Theme.query
+                      .filter_by(run_id=run_id)
+                      .filter(Theme.priority.in_(["P1", "P2"]))
+                      .order_by(Theme.priority, Theme.id)
+                      .all())
+        if not qualifying:
+            _write_audit(app, run_id, "ticket_drafting", "skipped",
+                         {"reason": "no P1 or P2 themes found"})
+            return
+
+        # Fetch evidence samples for each theme inside the same context
+        theme_dicts = []
+        for t in qualifying:
+            item_ids = json.loads(t.item_ids or "[]")
+            sample_ids = item_ids[:TICKET_EVIDENCE_SAMPLES]
+            samples = (FeedbackItem.query
+                       .filter(FeedbackItem.id.in_(sample_ids))
+                       .all())
+            theme_dicts.append({
+                "theme_id": t.id,
+                "title": t.title,
+                "priority": t.priority,
+                "rationale": t.rationale,
+                "evidence_count": len(item_ids),
+                "evidence_samples": [
+                    {"text": item.text, "category": item.category}
+                    for item in samples
+                ],
+            })
+
+    valid_theme_ids = {t["theme_id"] for t in theme_dicts}
+
+    messages = [
+        {"role": "system", "content": TICKET_PROMPT},
+        {"role": "user", "content": json.dumps(theme_dicts)},
+    ]
+
+    # --- First attempt (with timeout retry) ---
+    raw_response = None
+    usage = {}
+    for attempt in range(2):
+        try:
+            raw_response = _call_qwen(messages, THEME_MODEL,
+                                      temperature=QWEN_MAX_TEMPERATURE)
+            usage = _extract_usage(raw_response)
+            break
+        except requests.Timeout as e:
+            if attempt == 0:
+                logger.warning("Ticket drafting: timeout on attempt 1, retrying")
+                _write_audit(app, run_id, "ticket_drafting", "timeout_retry",
+                             {"attempt": 1, "error": str(e)})
+            else:
+                _write_audit(app, run_id, "ticket_drafting", "api_error",
+                             {"error": str(e)})
+                raise
+        except requests.RequestException as e:
+            _write_audit(app, run_id, "ticket_drafting", "api_error",
+                         {"error": str(e)})
+            raise
+
+    reply_text = _extract_text(raw_response)
+
+    # Parse — tolerant helper strips markdown fences
+    try:
+        parsed = _parse_json_reply(reply_text)
+        if not isinstance(parsed, list):
+            raise ValueError("Response is not a JSON array")
+    except (json.JSONDecodeError, ValueError) as e:
+        _write_audit(app, run_id, "ticket_drafting", "parse_error",
+                     {"error": str(e), "raw_reply": reply_text[:500]},
+                     model=THEME_MODEL, **usage)
+        raise RuntimeError(f"Ticket drafting: could not parse model response: {e}")
+
+    # Validate
+    tickets, bad_theme_ids = _validate_ticket_response(parsed, valid_theme_ids)
+
+    # --- Corrective retry if any tickets were invalid ---
+    if bad_theme_ids:
+        logger.warning("Ticket drafting: invalid tickets for theme_ids %s, retrying",
+                       bad_theme_ids)
+        retry_messages = messages + [
+            {"role": "assistant", "content": reply_text},
+            {"role": "user", "content": TICKET_RETRY_PROMPT.format(
+                bad_output=reply_text,
+                bad_theme_ids=", ".join(str(i) for i in sorted(bad_theme_ids)),
+            )},
+        ]
+        try:
+            retry_response = _call_qwen(retry_messages, THEME_MODEL,
+                                        temperature=QWEN_MAX_TEMPERATURE)
+            retry_text = _extract_text(retry_response)
+            usage = _extract_usage(retry_response)
+            retry_parsed = _parse_json_reply(retry_text)
+            tickets, bad_theme_ids = _validate_ticket_response(retry_parsed,
+                                                                valid_theme_ids)
+        except (requests.RequestException, json.JSONDecodeError) as e:
+            _write_audit(app, run_id, "ticket_drafting", "retry_error",
+                         {"error": str(e)}, model=THEME_MODEL, **usage)
+            # Fall through — tickets holds whatever was valid from first pass
+
+        if bad_theme_ids:
+            # Still invalid after retry — skip those themes, don't write bad tickets
+            _write_audit(app, run_id, "ticket_drafting", "tickets_skipped", {
+                "skipped_theme_ids": list(bad_theme_ids),
+                "reason": "Failed validation after retry — ticket not written",
+            }, model=THEME_MODEL, **usage)
+            logger.error(
+                "Ticket drafting run %d: skipped %d theme(s) after retry failure",
+                run_id, len(bad_theme_ids),
+            )
+
+    # --- Write DraftTicket rows ---
+    tickets_created = 0
+    with app.app_context():
+        for ticket in tickets:
+            draft = DraftTicket(
+                theme_id=ticket["theme_id"],
+                title=ticket["title"],
+                user_story=ticket["user_story"],
+                acceptance_criteria=json.dumps(ticket["acceptance_criteria"]),
+                severity=ticket["severity"],
+                status="pending_review",
+                edited_by_human=False,
+            )
+            db.session.add(draft)
+            tickets_created += 1
+
+        # Update run counts
+        run = db.session.get(PipelineRun, run_id)
+        counts = json.loads(run.counts_json) if run.counts_json else {}
+        counts["tickets"] = tickets_created
+        run.counts_json = json.dumps(counts)
+        db.session.commit()
+
+    _write_audit(app, run_id, "ticket_drafting", "tickets_created", {
+        "tickets_created": tickets_created,
+        "themes_input": len(theme_dicts),
+    }, model=THEME_MODEL,
+       tokens_in=usage.get("tokens_in"),
+       tokens_out=usage.get("tokens_out"))
+
+    logger.info("Ticket drafting complete: %d tickets from %d themes",
+                tickets_created, len(theme_dicts))
+
+
+def _validate_ticket_response(parsed: list,
+                               valid_theme_ids: set) -> tuple[list, set]:
+    """
+    Validate a parsed ticket drafting response.
+    Returns (valid_tickets, bad_theme_ids) where:
+      - valid_tickets:  list of dicts that passed all checks
+      - bad_theme_ids:  set of theme_ids whose tickets failed validation
+    """
+    valid = []
+    bad = set()
+    seen = set()
+
+    for entry in parsed:
+        if not isinstance(entry, dict):
+            continue
+
+        try:
+            theme_id = int(entry.get("theme_id"))
+        except (TypeError, ValueError):
+            continue
+
+        if theme_id not in valid_theme_ids:
+            continue
+        if theme_id in seen:
+            continue   # duplicate — first wins
+
+        title = entry.get("title", "")
+        user_story = entry.get("user_story", "")
+        criteria = entry.get("acceptance_criteria", [])
+        severity = entry.get("severity", "")
+
+        if not isinstance(title, str) or not title.strip():
+            bad.add(theme_id); continue
+        if not isinstance(user_story, str) or "I want" not in user_story:
+            bad.add(theme_id); continue
+        if not isinstance(criteria, list) or not (3 <= len(criteria) <= 5):
+            bad.add(theme_id); continue
+        if any(not isinstance(c, str) or not c.strip() for c in criteria):
+            bad.add(theme_id); continue
+        if severity not in VALID_SEVERITIES:
+            bad.add(theme_id); continue
+
+        seen.add(theme_id)
+        valid.append({
+            "theme_id": theme_id,
+            "title": title.strip(),
+            "user_story": user_story.strip(),
+            "acceptance_criteria": [c.strip() for c in criteria],
+            "severity": severity,
+        })
+
+    return valid, bad
+
+
+# ---------------------------------------------------------------------------
+# Top-level: run the full pipeline (Stages 0–4)
 # ---------------------------------------------------------------------------
 
 def run_pipeline(app, run_id: int, filepath: str):
     """
     Entry point called by app.py in a background thread.
-    Runs Stage 0 (ingest), Stage 1 (triage), Stage 2 (theme synthesis),
-    Stage 3 (prioritization).
+    Runs Stages 0–4 in sequence.
     Sets run status to awaiting_review on success, failed on error.
     """
     try:
@@ -1101,6 +1327,7 @@ def run_pipeline(app, run_id: int, filepath: str):
         run_triage(app, run_id)
         run_theme_synthesis(app, run_id)
         run_prioritization(app, run_id)
+        run_ticket_drafting(app, run_id)
         _update_run(app, run_id,
                     status="awaiting_review",
                     finished_at=datetime.now(timezone.utc))

@@ -127,3 +127,47 @@ PRIORITY_RETRY_PROMPT = (
     "Return ONLY a valid JSON array with keys: id, priority, rationale. "
     "No explanation, no markdown, no code fences."
 )
+
+# ---------------------------------------------------------------------------
+# Stage 4: Ticket Drafting  (qwen-max)
+# ---------------------------------------------------------------------------
+
+TICKET_PROMPT = (
+    "You are a senior product manager writing sprint-ready tickets from user feedback themes. "
+    "You will receive a JSON array of themes. Each theme has: theme_id (integer), title, "
+    "priority (P1 or P2), rationale (why it was prioritised), evidence_count (total items), "
+    "and evidence_samples (up to 5 real verbatim feedback items with their category).\n\n"
+    "For each theme, draft one ticket grounded entirely in the evidence provided. "
+    "Do not invent details, features, or user types that are not supported by the feedback.\n\n"
+    "Severity mapping — use exactly these values:\n"
+    "  P1 → severity: critical\n"
+    "  P2 → severity: high\n\n"
+    "Respond ONLY with a JSON array. Each element must have exactly these keys:\n"
+    "  theme_id           — integer, copied from the input\n"
+    "  title              — action-oriented title, under 10 words "
+    "(e.g. 'Fix silent transfer failures and automate refunds')\n"
+    "  user_story         — exactly this format: "
+    "'As a [user type from evidence], I want [capability], so that [outcome]'\n"
+    "  acceptance_criteria — JSON array of 3 to 5 strings, each a testable condition "
+    "starting with a verb (e.g. 'User receives an in-app error message within 5 seconds "
+    "of a failed transfer')\n"
+    "  severity           — exactly one of: critical, high, medium, low\n"
+    "No other text, no markdown, no code fences."
+)
+
+# Sent when any ticket in the first response fails validation.
+# Placeholders filled by pipeline.py:
+#   {bad_output}    — the model's previous response
+#   {bad_theme_ids} — comma-separated theme_ids whose tickets were invalid
+TICKET_RETRY_PROMPT = (
+    "Your previous response contained invalid tickets for the following theme_ids: {bad_theme_ids}\n\n"
+    "Problems: tickets must have theme_id (int), title (non-empty string under 10 words), "
+    "user_story (string starting with 'As a'), "
+    "acceptance_criteria (array of 3-5 non-empty strings), "
+    "and severity (exactly one of: critical, high, medium, low).\n\n"
+    "Here is what you returned:\n\n{bad_output}\n\n"
+    "Rewrite your FULL response, fixing the invalid tickets. "
+    "Return ONLY a valid JSON array with keys: theme_id, title, user_story, "
+    "acceptance_criteria, severity. "
+    "No explanation, no markdown, no code fences."
+)

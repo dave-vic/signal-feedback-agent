@@ -12,7 +12,7 @@ import threading
 import requests
 from flask import Flask, request, jsonify
 
-from models import db, PipelineRun, FeedbackItem, Theme
+from models import db, PipelineRun, FeedbackItem, Theme, DraftTicket
 from prompts import TRIAGE_PROMPT
 from pipeline import run_pipeline
 
@@ -257,11 +257,58 @@ def get_themes(run_id):
     return jsonify({"run_id": run_id, "themes": result})
 
 
+@app.route("/runs/<int:run_id>/tickets", methods=["GET"])
+def get_tickets(run_id):
+    """
+    Returns all draft tickets for a run.
+    Each ticket includes its theme_id, title, user_story,
+    acceptance_criteria (parsed from JSON), severity, and status.
+    Only tickets with status pending_review are shown by default.
+    Pass ?all=true to include approved and rejected tickets too.
+    """
+    with app.app_context():
+        run = db.session.get(PipelineRun, run_id)
+        if run is None:
+            return jsonify({"error": "Run not found"}), 404
+
+        show_all = request.args.get("all", "").lower() == "true"
+
+        tickets_query = (DraftTicket.query
+                         .join(Theme, DraftTicket.theme_id == Theme.id)
+                         .filter(Theme.run_id == run_id)
+                         .order_by(DraftTicket.id))
+
+        if not show_all:
+            tickets_query = tickets_query.filter(
+                DraftTicket.status == "pending_review"
+            )
+
+        tickets = tickets_query.all()
+        payload = [
+            {
+                "id": t.id,
+                "theme_id": t.theme_id,
+                "title": t.title,
+                "user_story": t.user_story,
+                "acceptance_criteria": json.loads(t.acceptance_criteria)
+                    if t.acceptance_criteria else [],
+                "severity": t.severity,
+                "status": t.status,
+                "edited_by_human": t.edited_by_human,
+                "external_ref": t.external_ref,
+            }
+            for t in tickets
+        ]
+
+    return jsonify({"run_id": run_id, "tickets": payload})
+
+
 @app.route("/themes/<int:theme_id>", methods=["GET"])
 def get_theme(theme_id):
     """
     Returns one theme plus its full evidence chain: every underlying
     FeedbackItem's original text, category, and summary.
+    Also includes any draft tickets linked to this theme.
     This is the 'show me why' screen — the trust argument.
     """
     with app.app_context():
@@ -289,6 +336,25 @@ def get_theme(theme_id):
             for item in items
         ]
 
+        # Fetch any draft tickets for this theme
+        tickets = (DraftTicket.query
+                   .filter_by(theme_id=theme_id)
+                   .order_by(DraftTicket.id)
+                   .all())
+        tickets_payload = [
+            {
+                "id": t.id,
+                "title": t.title,
+                "user_story": t.user_story,
+                "acceptance_criteria": json.loads(t.acceptance_criteria)
+                    if t.acceptance_criteria else [],
+                "severity": t.severity,
+                "status": t.status,
+                "edited_by_human": t.edited_by_human,
+            }
+            for t in tickets
+        ]
+
     return jsonify({
         "id": theme.id,
         "run_id": theme.run_id,
@@ -299,6 +365,7 @@ def get_theme(theme_id):
         "sources_breakdown": sources,
         "evidence_count": len(item_ids),
         "items": items_payload,
+        "tickets": tickets_payload,
     })
 
 
