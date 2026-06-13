@@ -4,7 +4,7 @@ import { getRun, getThemes } from '../../api.js'
 import styles from './ThemesPage.module.css'
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Constants
 // ---------------------------------------------------------------------------
 
 const SOURCE_LABELS = {
@@ -14,17 +14,23 @@ const SOURCE_LABELS = {
   other:     'Other',
 }
 
+const PRIORITY_SECTIONS = [
+  { key: 'P1', label: 'Critical',  variant: 'p1' },
+  { key: 'P2', label: 'High',      variant: 'p2' },
+  { key: 'P3', label: 'Medium',    variant: 'p3' },
+  { key: 'P4', label: 'Low',       variant: 'p4' },
+]
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
 function sourceLabel(key) {
   return SOURCE_LABELS[key] || key
 }
 
-/**
- * Priority badge — solid fill for P1/P2, softer for P3/P4.
- * variant drives both the color scheme and the weight of the badge.
- */
-function PriorityBadge({ priority }) {
+function PriorityBadge({ priority, variant }) {
   if (!priority) return null
-  const variant = priority.toLowerCase()
   return (
     <span className={`${styles.badge} ${styles[`badge_${variant}`]}`}>
       {priority}
@@ -32,24 +38,20 @@ function PriorityBadge({ priority }) {
   )
 }
 
-/** One theme card — priority-aware variant class controls visual weight. */
 function ThemeCard({ theme }) {
   const priority   = theme.priority || 'P4'
   const variant    = priority.toLowerCase()
   const sources    = theme.sources_breakdown || {}
   const sourceKeys = Object.keys(sources).filter(k => sources[k] > 0)
 
-  const cardClass = [
-    styles.themeCard,
-    styles[`themeCard_${variant}`],
-  ].join(' ')
-
   return (
-    <Link to={`/themes/${theme.id}`} className={cardClass}>
-
-      {/* Top row: badge + title */}
+    <Link
+      to={`/themes/${theme.id}`}
+      className={`${styles.themeCard} ${styles[`themeCard_${variant}`]}`}
+    >
+      {/* Top: badge + title */}
       <div className={styles.cardTop}>
-        <PriorityBadge priority={priority} />
+        <PriorityBadge priority={priority} variant={variant} />
         <span className={styles.cardTitle}>{theme.title}</span>
       </div>
 
@@ -58,7 +60,7 @@ function ThemeCard({ theme }) {
         <p className={styles.problemStatement}>{theme.problem_statement}</p>
       )}
 
-      {/* Footer: evidence pill + source chips */}
+      {/* Footer: evidence pill + sources */}
       <div className={styles.cardFooter}>
         <span className={`${styles.evidenceCount} ${styles[`evidenceCount_${variant}`]}`}>
           <span className={styles.evidenceNumber}>{theme.evidence_count}</span>
@@ -77,6 +79,37 @@ function ThemeCard({ theme }) {
         )}
       </div>
     </Link>
+  )
+}
+
+/**
+ * One priority tier: section header + 2-col card grid.
+ * Only rendered when `themes` is non-empty.
+ */
+function PrioritySection({ sectionDef, themes }) {
+  if (!themes || themes.length === 0) return null
+  const { key, label, variant } = sectionDef
+  const count = themes.length
+  const word  = count === 1 ? 'theme' : 'themes'
+
+  return (
+    <section className={styles.section}>
+      {/* Section header */}
+      <div className={`${styles.sectionHeader} ${styles[`sectionHeader_${variant}`]}`}>
+        <div className={styles.sectionTitle}>
+          <span className={`${styles.sectionPill} ${styles[`sectionPill_${variant}`]}`}>{key}</span>
+          <span className={styles.sectionLabel}>{label}</span>
+        </div>
+        <span className={styles.sectionCount}>{count} {word}</span>
+      </div>
+
+      {/* Card grid — 2 cols, 1 col when only one theme */}
+      <div className={`${styles.cardGrid} ${themes.length === 1 ? styles.cardGrid_single : ''}`}>
+        {themes.map(theme => (
+          <ThemeCard key={theme.id} theme={theme} />
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -129,6 +162,14 @@ export default function ThemesPage() {
     ? `${themes.length} ${themeWord} · ${ticketCount} ${ticketWord} ready for review`
     : `${themes.length} ${themeWord} found`
 
+  // Group themes by priority
+  const byPriority = themes.reduce((acc, t) => {
+    const p = t.priority || 'P4'
+    if (!acc[p]) acc[p] = []
+    acc[p].push(t)
+    return acc
+  }, {})
+
   return (
     <div className={styles.page}>
 
@@ -145,10 +186,14 @@ export default function ThemesPage() {
         <p className={styles.subline}>{subline}</p>
       </div>
 
-      {/* Theme cards — backend returns them sorted P1 → P4 */}
-      <div className={styles.themeList}>
-        {themes.map(theme => (
-          <ThemeCard key={theme.id} theme={theme} />
+      {/* Priority sections */}
+      <div className={styles.sections}>
+        {PRIORITY_SECTIONS.map(sec => (
+          <PrioritySection
+            key={sec.key}
+            sectionDef={sec}
+            themes={byPriority[sec.key] || []}
+          />
         ))}
       </div>
 

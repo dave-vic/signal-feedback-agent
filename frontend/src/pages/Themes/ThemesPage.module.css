@@ -3,14 +3,14 @@
    ========================================================= */
 
 .page {
-  max-width: 740px;
+  max-width: 860px;
   margin: 0 auto;
   padding: var(--space-10) var(--space-10) var(--space-16);
 }
 
 /* ---- Page header ---- */
 .pageHeader {
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-10);
 }
 
 .breadcrumb {
@@ -27,14 +27,9 @@
   text-decoration: none;
   transition: color var(--transition);
 }
+.breadcrumbLink:hover { color: var(--color-text-secondary); }
 
-.breadcrumbLink:hover {
-  color: var(--color-text-secondary);
-}
-
-.breadcrumbSep {
-  margin: 0 var(--space-2);
-}
+.breadcrumbSep { margin: 0 var(--space-2); }
 
 .headline {
   font-family: var(--font-serif);
@@ -50,104 +45,168 @@
   color: var(--color-text-secondary);
 }
 
-/* ---- Theme list ---- */
-.themeList {
+/* =========================================================
+   SECTIONS
+   ========================================================= */
+
+.sections {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-10);
   margin-bottom: var(--space-8);
 }
 
-/* ===========================================================
-   THEME CARD — base
-   =========================================================== */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* ---- Section header ---- */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-3);
+  border-bottom: 1.5px solid var(--color-border);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The Px pill on the section header */
+.sectionPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  line-height: 1;
+}
+
+.sectionLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--color-text-primary);
+}
+
+.sectionCount {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+
+/* Per-priority section header accent */
+.sectionHeader_p1 { border-bottom-color: #FECACA; }
+.sectionHeader_p2 { border-bottom-color: #FDE68A; }
+.sectionHeader_p3 { border-bottom-color: #E5E7EB; }
+.sectionHeader_p4 { border-bottom-color: #E5E7EB; }
+
+.sectionPill_p1 { background: #DC2626; color: #fff; }
+.sectionPill_p2 { background: #D97706; color: #fff; }
+.sectionPill_p3 { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+.sectionPill_p4 { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
+
+/* ---- Card grid: 2 columns, falls back to 1 for a single card ---- */
+.cardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.cardGrid_single {
+  grid-template-columns: 1fr;
+  max-width: 520px;
+}
+
+/* =========================================================
+   THEME CARD — base (Craft-style: breathing room, soft shadow)
+   ========================================================= */
+
 .themeCard {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-left-width: 3px;           /* left accent — overridden per priority */
-  border-left-color: var(--color-border);
-  border-radius: var(--radius-md);
+  border-left-width: 3px;
+  border-left-color: transparent;
+  border-radius: 12px;
   padding: var(--space-5) var(--space-6);
   text-decoration: none;
   color: inherit;
-  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
-  position: relative;
-  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+  transition: box-shadow var(--transition), transform var(--transition), border-color var(--transition);
+  min-height: 0;
 }
 
 .themeCard:hover {
-  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
-  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07), 0 8px 24px rgba(0,0,0,0.06);
+  transform: translateY(-2px);
   text-decoration: none;
   color: inherit;
 }
 
-/* ===========================================================
-   PRIORITY VARIANTS — visual weight decreases P1 → P4
-   =========================================================== */
+/* ---- Priority variants ---- */
 
-/* --- P1: Urgent / red — strongest card --- */
+/* P1 — red left border + very faint red wash */
 .themeCard_p1 {
   border-left-color: #DC2626;
-  background: linear-gradient(to right, #FFF5F5 0%, var(--color-surface) 120px);
-  padding-top:    var(--space-6);
-  padding-bottom: var(--space-6);
+  background: linear-gradient(135deg, #FFF8F8 0%, #FFFFFF 60%);
 }
-
 .themeCard_p1:hover {
-  border-color: #DC2626;
+  box-shadow: 0 2px 8px rgba(220,38,38,0.08), 0 8px 24px rgba(220,38,38,0.06);
+  border-color: #FECACA;
   border-left-color: #DC2626;
-  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.1);
 }
 
-/* --- P2: High / amber --- */
+/* P2 — amber left border */
 .themeCard_p2 {
   border-left-color: #D97706;
-  background: linear-gradient(to right, #FFFBF0 0%, var(--color-surface) 120px);
+  background: linear-gradient(135deg, #FFFDF5 0%, #FFFFFF 60%);
 }
-
 .themeCard_p2:hover {
-  border-color: #D97706;
+  box-shadow: 0 2px 8px rgba(217,119,6,0.07), 0 8px 24px rgba(217,119,6,0.05);
+  border-color: #FDE68A;
   border-left-color: #D97706;
-  box-shadow: 0 3px 12px rgba(217, 119, 6, 0.08);
 }
 
-/* --- P3: Medium / muted yellow — recedes --- */
+/* P3 — subtle warm left border */
 .themeCard_p3 {
-  border-left-color: #B45309;
-  background: var(--color-surface);
-}
-
-.themeCard_p3:hover {
-  border-color: #B45309;
-  border-left-color: #B45309;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-}
-
-/* --- P4: Low / grey — most recessed --- */
-.themeCard_p4 {
   border-left-color: #D1D5DB;
-  background: var(--color-surface);
-  opacity: 0.9;
+}
+.themeCard_p3:hover {
+  border-color: var(--color-border-strong);
+  border-left-color: #B45309;
 }
 
+/* P4 — grey, lightest visual weight */
+.themeCard_p4 {
+  border-left-color: #E5E7EB;
+  opacity: 0.88;
+}
 .themeCard_p4:hover {
+  border-color: var(--color-border-strong);
   border-left-color: #9CA3AF;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
   opacity: 1;
 }
 
-/* ===========================================================
+/* =========================================================
    CARD INTERNALS
-   =========================================================== */
+   ========================================================= */
 
-/* ---- Top row: badge + title ---- */
+/* Top row: badge + title */
 .cardTop {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  gap: var(--space-2);
 }
 
 .cardTitle {
@@ -158,83 +217,78 @@
   flex: 1;
 }
 
-/* P1 title slightly larger to reinforce hierarchy */
+/* P1 title slightly heavier */
 .themeCard_p1 .cardTitle {
-  font-size: 1.05rem;
   font-weight: 700;
 }
 
-/* ---- Problem statement ---- */
+/* Problem statement */
 .problemStatement {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  line-height: 1.6;
-  margin-bottom: var(--space-4);
+  line-height: 1.65;
+  flex: 1;
+  margin: 0;
 }
 
-/* ---- Card footer: evidence count + sources ---- */
+/* Footer: evidence pill + sources */
 .cardFooter {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-top: auto;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+  flex-wrap: wrap;
 }
 
-/* Evidence count — prominent signal */
+/* Evidence count pill */
 .evidenceCount {
   display: inline-flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 3px;
   font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--color-text-secondary);
   background: var(--color-surface-subtle);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
-  padding: 3px 10px 3px 8px;
+  padding: 3px 9px 3px 7px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-/* The numeric part — bolder and slightly larger */
 .evidenceNumber {
   font-size: var(--font-size-sm);
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
-/* P1/P2 evidence count picks up a tinted border */
+/* P1/P2 tinted evidence pills */
 .evidenceCount_p1 {
+  background: #FFF0F0;
   border-color: #FECACA;
-  background: #FFF5F5;
   color: #991B1B;
 }
-
-.evidenceCount_p1 .evidenceNumber {
-  color: #DC2626;
-}
+.evidenceCount_p1 .evidenceNumber { color: #DC2626; }
 
 .evidenceCount_p2 {
+  background: #FFFBEB;
   border-color: #FDE68A;
-  background: #FFFBF0;
   color: #92400E;
 }
-
-.evidenceCount_p2 .evidenceNumber {
-  color: #D97706;
-}
+.evidenceCount_p2 .evidenceNumber { color: #D97706; }
 
 /* Sources */
 .sources {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .sourceChip {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 4px;
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
 }
@@ -247,9 +301,10 @@
   flex-shrink: 0;
 }
 
-/* ===========================================================
-   PRIORITY BADGE
-   =========================================================== */
+/* =========================================================
+   PRIORITY BADGE (inside card)
+   ========================================================= */
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -265,35 +320,15 @@
   text-transform: uppercase;
 }
 
-/* P1 — solid red, white text: urgent, can't miss it */
-.badge_p1 {
-  background: #DC2626;
-  color: #FFFFFF;
-}
+.badge_p1 { background: #DC2626; color: #fff; }
+.badge_p2 { background: #D97706; color: #fff; }
+.badge_p3 { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+.badge_p4 { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
 
-/* P2 — solid amber, white text: high priority */
-.badge_p2 {
-  background: #D97706;
-  color: #FFFFFF;
-}
-
-/* P3 — tinted yellow, dark text: medium, softer */
-.badge_p3 {
-  background: #FEF3C7;
-  color: #92400E;
-  border: 1px solid #FDE68A;
-}
-
-/* P4 — grey, muted: low, recedes */
-.badge_p4 {
-  background: #F3F4F6;
-  color: #6B7280;
-  border: 1px solid #E5E7EB;
-}
-
-/* ===========================================================
+/* =========================================================
    HONESTY LINE
-   =========================================================== */
+   ========================================================= */
+
 .honestyLine {
   display: flex;
   align-items: center;
@@ -306,12 +341,13 @@
 
 .honestyIcon {
   font-size: 0.75rem;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
-/* ===========================================================
-   LOADING / ERROR / EMPTY STATES
-   =========================================================== */
+/* =========================================================
+   LOADING / ERROR STATES
+   ========================================================= */
+
 .stateWrap {
   display: flex;
   flex-direction: column;
