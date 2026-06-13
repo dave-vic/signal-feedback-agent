@@ -45,6 +45,100 @@
   color: var(--color-text-secondary);
 }
 
+/* Clickable ticket count in the subline */
+.sublineTicketLink {
+  color: #4F46E5;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color var(--transition);
+}
+.sublineTicketLink:hover { color: #3730A3; text-decoration: underline; }
+
+.sublineTicketLink_done {
+  color: #16A34A;
+  font-weight: 500;
+}
+.sublineTicketLink_done:hover { color: #15803D; }
+
+/* =========================================================
+   TICKET CTA BANNER
+   "Signal drafted N tickets — review and approve them"
+   ========================================================= */
+
+.ctaBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid #C7D2FE;
+  border-left: 3px solid #4F46E5;
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-8);
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--transition), box-shadow var(--transition);
+}
+
+.ctaBanner:hover {
+  background: #FAFAFE;
+  box-shadow: 0 2px 8px rgba(79,70,229,0.08);
+  text-decoration: none;
+  color: inherit;
+}
+
+/* "All reviewed" variant — green tint */
+.ctaBanner_done {
+  border-color: #BBF7D0;
+  border-left-color: #16A34A;
+  background: #F0FDF4;
+}
+.ctaBanner_done:hover {
+  background: #ECFDF5;
+  box-shadow: 0 2px 8px rgba(22,163,74,0.07);
+}
+
+.ctaIcon {
+  font-size: 14px;
+  color: #4F46E5;
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.ctaBanner_done .ctaIcon {
+  color: #16A34A;
+}
+
+.ctaText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  flex: 1;
+  line-height: 1.5;
+}
+
+.ctaText strong {
+  color: var(--color-text-primary);
+}
+
+.ctaAction {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: #4F46E5;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color var(--transition);
+}
+.ctaBanner:hover .ctaAction { color: #3730A3; }
+
+.ctaActionDone {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #16A34A;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* =========================================================
    SECTIONS
    ========================================================= */
@@ -390,6 +484,16 @@
 @media (max-width: 768px) {
   .page {
     padding: var(--space-6) var(--space-5) var(--space-10);
+  }
+
+  .ctaBanner {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .ctaAction, .ctaActionDone {
+    width: 100%;
+    padding-left: 28px; /* align under text, past icon */
   }
 
   .headline {

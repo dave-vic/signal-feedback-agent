@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getRun, getThemes } from '../../api.js'
+import { getRun, getThemes, getTickets } from '../../api.js'
 import styles from './ThemesPage.module.css'
 
 // ---------------------------------------------------------------------------
@@ -114,19 +114,63 @@ function PrioritySection({ sectionDef, themes }) {
 }
 
 // ---------------------------------------------------------------------------
+// Ticket CTA banner — shown between header and theme sections
+// ---------------------------------------------------------------------------
+
+function TicketCTA({ pendingCount, totalTickets, runId }) {
+  // Don't render anything if no tickets were drafted at all
+  if (totalTickets === 0) return null
+
+  if (pendingCount > 0) {
+    const word = pendingCount === 1 ? 'ticket' : 'tickets'
+    return (
+      <Link to={`/runs/${runId}/tickets`} className={styles.ctaBanner}>
+        <span className={styles.ctaIcon}>✎</span>
+        <span className={styles.ctaText}>
+          Signal drafted{' '}
+          <strong>{pendingCount} {word}</strong>
+          {' '}from these themes.
+        </span>
+        <span className={styles.ctaAction}>Review and approve →</span>
+      </Link>
+    )
+  }
+
+  // All reviewed
+  return (
+    <Link to={`/runs/${runId}/tickets`} className={`${styles.ctaBanner} ${styles.ctaBanner_done}`}>
+      <span className={styles.ctaIcon}>✓</span>
+      <span className={styles.ctaText}>
+        All {totalTickets} {totalTickets === 1 ? 'ticket' : 'tickets'} reviewed.
+      </span>
+      <span className={styles.ctaActionDone}>View tickets</span>
+    </Link>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function ThemesPage() {
   const { runId } = useParams()
-  const [run,    setRun]    = useState(null)
-  const [themes, setThemes] = useState(null)
-  const [error,  setError]  = useState(null)
+  const [run,          setRun]          = useState(null)
+  const [themes,       setThemes]       = useState(null)
+  const [pendingCount, setPendingCount] = useState(0)
+  const [error,        setError]        = useState(null)
 
   useEffect(() => {
-    Promise.all([getRun(runId), getThemes(runId)])
-      .then(([runData, themesData]) => {
+    Promise.all([
+      getRun(runId),
+      getThemes(runId),
+      getTickets(runId, { all: true }),  // all statuses so we know total + pending
+    ])
+      .then(([runData, themesData, ticketsData]) => {
         setRun(runData)
         setThemes(themesData.themes || [])
+        const all = ticketsData.tickets || []
+        setPendingCount(all.filter(t => t.status === 'pending_review').length)
+        // Store total on run so subline can use it
+        runData._ticketTotal = all.length
       })
       .catch(err => setError(err.message))
   }, [runId])
@@ -154,13 +198,10 @@ export default function ThemesPage() {
 
   const counts      = run.counts || {}
   const excluded    = counts.excluded || 0
-  const ticketCount = counts.tickets || 0
+  // Use live ticket count from fetched data (more reliable than counts_json)
+  const ticketCount = run._ticketTotal ?? (counts.tickets || 0)
 
-  const themeWord  = themes.length === 1 ? 'theme' : 'themes'
-  const ticketWord = ticketCount === 1 ? 'draft ticket' : 'draft tickets'
-  const subline    = ticketCount > 0
-    ? `${themes.length} ${themeWord} · ${ticketCount} ${ticketWord} ready for review`
-    : `${themes.length} ${themeWord} found`
+  const themeWord = themes.length === 1 ? 'theme' : 'themes'
 
   // Group themes by priority
   const byPriority = themes.reduce((acc, t) => {
@@ -183,8 +224,40 @@ export default function ThemesPage() {
           Themes
         </div>
         <h1 className={styles.headline}>{run.filename}</h1>
-        <p className={styles.subline}>{subline}</p>
+
+        {/* Subline — ticket portion is a live link */}
+        <p className={styles.subline}>
+          {themes.length} {themeWord}
+          {ticketCount > 0 && (
+            <>
+              {' · '}
+              {pendingCount > 0 ? (
+                <Link
+                  to={`/runs/${runId}/tickets`}
+                  className={styles.sublineTicketLink}
+                >
+                  {pendingCount} {pendingCount === 1 ? 'ticket' : 'tickets'} pending review →
+                </Link>
+              ) : (
+                <Link
+                  to={`/runs/${runId}/tickets`}
+                  className={`${styles.sublineTicketLink} ${styles.sublineTicketLink_done}`}
+                >
+                  all tickets reviewed ✓
+                </Link>
+              )}
+            </>
+          )}
+          {ticketCount === 0 && ' found'}
+        </p>
       </div>
+
+      {/* Ticket CTA banner */}
+      <TicketCTA
+        pendingCount={pendingCount}
+        totalTickets={ticketCount}
+        runId={runId}
+      />
 
       {/* Priority sections */}
       <div className={styles.sections}>
