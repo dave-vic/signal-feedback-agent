@@ -750,28 +750,39 @@ def run_prioritization(app, run_id: int):
     """
     _update_run(app, run_id, status="prioritizing")
 
+    # Load themes as plain dicts before the context closes.
+    # Same pattern as run_theme_synthesis — ORM objects become detached once
+    # the app_context block exits and cannot be read outside it.
     with app.app_context():
-        themes = Theme.query.filter_by(run_id=run_id).order_by(Theme.id).all()
-        # Build lookup by DB id for writing results back
-        themes_by_id = {t.id: t for t in themes}
+        theme_dicts = [
+            {
+                "id": t.id,
+                "title": t.title,
+                "problem_statement": t.problem_statement,
+                "item_ids": json.loads(t.item_ids or "[]"),
+                "sources_breakdown": json.loads(t.sources_breakdown or "{}"),
+            }
+            for t in Theme.query.filter_by(run_id=run_id).order_by(Theme.id).all()
+        ]
 
-    if not themes:
+    valid_theme_ids = {t["id"] for t in theme_dicts}
+
+    if not theme_dicts:
         _write_audit(app, run_id, "prioritization", "skipped",
                      {"reason": "no themes to prioritize"})
         return
 
     # Build payload — evidence_count derived from item_ids length
-    payload = []
-    for t in themes:
-        item_ids = json.loads(t.item_ids or "[]")
-        sources = json.loads(t.sources_breakdown or "{}")
-        payload.append({
-            "id": t.id,
-            "title": t.title,
-            "problem_statement": t.problem_statement,
-            "evidence_count": len(item_ids),
-            "sources_breakdown": sources,
-        })
+    payload = [
+        {
+            "id": t["id"],
+            "title": t["title"],
+            "problem_statement": t["problem_statement"],
+            "evidence_count": len(t["item_ids"]),
+            "sources_breakdown": t["sources_breakdown"],
+        }
+        for t in theme_dicts
+    ]
 
     messages = [
         {"role": "system", "content": PRIORITY_PROMPT},
@@ -798,7 +809,7 @@ def run_prioritization(app, run_id: int):
         raise RuntimeError(f"Prioritization: could not parse model response: {e}")
 
     # Validate each entry
-    results, bad_entries = _validate_priority_response(parsed, set(themes_by_id.keys()))
+    results, bad_entries = _validate_priority_response(parsed, valid_theme_ids)
 
     # --- Corrective retry if anything was invalid ---
     if bad_entries:
@@ -819,7 +830,7 @@ def run_prioritization(app, run_id: int):
             reply_text = _extract_text(raw_response)
             usage = _extract_usage(raw_response)
             parsed = json.loads(reply_text)
-            results, bad_entries = _validate_priority_response(parsed, set(themes_by_id.keys()))
+            results, bad_entries = _validate_priority_response(parsed, valid_theme_ids)
         except (requests.RequestException, json.JSONDecodeError) as e:
             _write_audit(app, run_id, "prioritization", "retry_error",
                          {"error": str(e)}, model=THEME_MODEL, **usage)
@@ -829,7 +840,7 @@ def run_prioritization(app, run_id: int):
         if bad_entries:
             defaulted_ids = [e["id"] for e in bad_entries if "id" in e]
             for theme_id in defaulted_ids:
-                if theme_id in themes_by_id:
+                if theme_id in valid_theme_ids:
                     results.append({
                         "id": theme_id,
                         "priority": DEFAULT_PRIORITY,
