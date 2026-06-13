@@ -130,8 +130,7 @@ export default function UploadPage() {
       <div className={styles.hero}>
         <h1 className={styles.headline}>
           Drop in your raw feedback.<br />
-          Get back a prioritized roadmap —<br />
-          with receipts.
+          Get back a prioritized roadmap — with receipts.
         </h1>
         <p className={styles.subtitle}>
           Upload a CSV of reviews, tickets, and survey comments. Signal triages,

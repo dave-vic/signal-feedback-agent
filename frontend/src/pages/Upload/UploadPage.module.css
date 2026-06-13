@@ -5,28 +5,30 @@
 .page {
   padding: var(--space-12) var(--space-10);
   max-width: 860px;
+  margin: 0 auto;
 }
 
 /* ---- Hero ---- */
 .hero {
-  margin-bottom: var(--space-10);
+  margin-bottom: var(--space-6);  /* tighter — headline flows into dropzone */
+  text-align: center;
 }
 
 .headline {
   font-family: var(--font-serif);
-  font-size: var(--font-size-display);
+  font-size: 1.75rem;             /* stepped down from 2.25rem — statement, not shout */
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.2;
   letter-spacing: -0.02em;
   color: var(--color-text-primary);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-2);  /* tighter gap to subtitle */
 }
 
 .subtitle {
-  font-size: var(--font-size-base);
-  color: var(--color-text-secondary);
-  max-width: 500px;
-  line-height: 1.7;
+  font-size: var(--font-size-sm); /* 13px — supportive, not competing */
+  color: var(--color-text-tertiary);
+  line-height: 1.65;
+  margin-bottom: 0;
 }
 
 /* ---- Empty-state onboarding ---- */
@@ -91,26 +93,29 @@
   margin-bottom: var(--space-3);
 }
 
-/* Drop zone */
+/* Drop zone — the primary focal point */
 .dropZone {
   position: relative;
-  background: var(--color-surface);
-  border: 1.5px dashed var(--color-border-strong);
+  background: #F8F7F5;            /* barely-warm tint — not stark white, not grey */
+  border: 1.5px dashed #C9C7C2;   /* slightly more visible than default border */
   border-radius: var(--radius-lg);
-  padding: var(--space-12) var(--space-8);
+  padding: var(--space-12) var(--space-8) var(--space-10);
   text-align: center;
   cursor: pointer;
-  transition: border-color var(--transition), background var(--transition);
+  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.03); /* very subtle inner depth */
 }
 
 .dropZone:hover {
-  border-color: var(--color-text-tertiary);
-  background: var(--color-surface-subtle);
+  border-color: var(--color-text-secondary);
+  background: #F3F1EE;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.05);
 }
 
 .dropZoneActive {
   border-color: var(--color-text-primary);
-  background: var(--color-surface-subtle);
+  background: #EEECEA;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.06);
 }
 
 .dropZoneUploading {
@@ -176,7 +181,7 @@
   background: var(--color-border);
 }
 
-/* Sample dataset button — ghost style */
+/* Sample dataset button — clearly secondary to the dropzone */
 .sampleButton {
   display: flex;
   align-items: center;
@@ -187,10 +192,10 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary); /* muted — not competing with dropzone */
   font-size: var(--font-size-sm);
-  font-weight: 500;
-  transition: border-color var(--transition), background var(--transition);
+  font-weight: 400;                   /* lighter weight than primary action */
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
 }
 
 .sampleButton:hover:not(:disabled) {
@@ -219,9 +224,10 @@
   font-size: var(--font-size-sm);
 }
 
-/* ---- Past runs ---- */
+/* ---- Past runs — tertiary: clearly below the primary action ---- */
 .pastRuns {
-  /* inherits page width */
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--color-border); /* visual separator from the upload section */
 }
 
 .pastRunsHeading {
@@ -230,40 +236,38 @@
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 .runCard {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-4);  /* tighter than before */
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-3);
+  border-radius: var(--radius);            /* smaller radius — less prominent */
+  margin-bottom: var(--space-2);
   cursor: pointer;
   text-decoration: none;
   color: inherit;
-  box-shadow: var(--shadow-xs);
-  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+  transition: border-color var(--transition), background var(--transition);
 }
 
 .runCard:hover {
   border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-1px);
+  background: var(--color-surface-subtle);
   text-decoration: none;
 }
 
 .runStory {
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);  /* not primary — this is history, not action */
 }
 
 .runMeta {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);      /* stepped down */
   color: var(--color-text-tertiary);
   margin-top: 2px;
 }
