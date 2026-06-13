@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import styles from './AppShell.module.css'
 
 /**
@@ -7,8 +8,9 @@ import styles from './AppShell.module.css'
  * Desktop/tablet (≥ 769px): fixed left sidebar.
  * Mobile (≤ 768px): fixed top navbar with wordmark + compact nav links.
  *
- * Reads runId from URL params so nav links to run-scoped screens
- * (Themes, Approval queue, Audit trail) activate when inside a run.
+ * Derives runId from the current URL. When not on a run URL, falls back to
+ * the last visited runId (persisted in localStorage) so sidebar links stay
+ * live after navigating back to the upload screen.
  */
 
 /** The shared Signal sparkle mark — used in both sidebar and topbar. */
@@ -31,12 +33,29 @@ function SignalMark({ size = 22 }) {
   )
 }
 
+const LAST_RUN_KEY = 'signal_last_run_id'
+
 export default function AppShell({ children }) {
   const { pathname } = useLocation()
-  // Extract runId from any /runs/:runId/* URL — AppShell sits outside Routes
-  // so useParams() is always empty here. Parse the path directly instead.
+
+  // Extract runId from current URL — AppShell sits outside Routes so
+  // useParams() is always empty here; parse the path directly.
   const runIdMatch = pathname.match(/^\/runs\/(\d+)/)
-  const runId = runIdMatch ? runIdMatch[1] : null
+  const urlRunId = runIdMatch ? runIdMatch[1] : null
+
+  // Persist the most-recently-visited runId so sidebar links stay live
+  // when the user navigates back to the upload screen.
+  const [lastRunId, setLastRunId] = useState(() => localStorage.getItem(LAST_RUN_KEY))
+
+  useEffect(() => {
+    if (urlRunId) {
+      setLastRunId(urlRunId)
+      localStorage.setItem(LAST_RUN_KEY, urlRunId)
+    }
+  }, [urlRunId])
+
+  // Active run: URL takes priority; fall back to last known run
+  const runId = urlRunId || lastRunId
 
   return (
     <div className={styles.shell}>
