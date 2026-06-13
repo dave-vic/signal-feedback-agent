@@ -147,6 +147,104 @@ def classify():
 # Pipeline endpoints
 # ---------------------------------------------------------------------------
 
+@app.route("/runs", methods=["GET"])
+def list_runs():
+    """
+    Returns all pipeline runs, newest first.
+    Each entry includes id, filename, started_at, status, and counts.
+    Used by the frontend sidebar to show run history.
+    """
+    with app.app_context():
+        runs = (PipelineRun.query
+                .order_by(PipelineRun.id.desc())
+                .all())
+
+    result = []
+    for r in runs:
+        counts = json.loads(r.counts_json) if r.counts_json else {}
+        result.append({
+            "run_id":      r.id,
+            "filename":    r.filename,
+            "status":      r.status,
+            "started_at":  r.started_at.isoformat() if r.started_at else None,
+            "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+            "counts":      counts,
+        })
+
+    return jsonify({"runs": result})
+
+
+@app.route("/runs/<int:run_id>", methods=["DELETE"])
+def delete_run(run_id):
+    """
+    Permanently deletes one run and all its associated data:
+    audit_events, draft_tickets (via themes), themes, feedback_items, and
+    the run itself. Returns 204 on success, 404 if not found.
+    """
+    with app.app_context():
+        run = db.session.get(PipelineRun, run_id)
+        if run is None:
+            return jsonify({"error": "Run not found"}), 404
+
+        # Delete in FK-safe order: children before parents.
+        # 1. AuditEvents (FK → run)
+        from models import AuditEvent
+        AuditEvent.query.filter_by(run_id=run_id).delete()
+
+        # 2. DraftTickets (FK → theme → run) — find via themes
+        theme_ids = [t.id for t in Theme.query.filter_by(run_id=run_id).all()]
+        if theme_ids:
+            DraftTicket.query.filter(DraftTicket.theme_id.in_(theme_ids)).delete(
+                synchronize_session=False
+            )
+
+        # 3. Themes (FK → run)
+        Theme.query.filter_by(run_id=run_id).delete()
+
+        # 4. FeedbackItems (FK → run)
+        FeedbackItem.query.filter_by(run_id=run_id).delete()
+
+        # 5. The run itself
+        db.session.delete(run)
+        db.session.commit()
+
+    return "", 204
+
+
+@app.route("/runs", methods=["DELETE"])
+def delete_all_runs():
+    """
+    Permanently deletes every run and all associated data.
+    Returns { "deleted": N } where N is the number of runs removed.
+    """
+    from models import AuditEvent
+
+    with app.app_context():
+        all_run_ids = [r.id for r in PipelineRun.query.with_entities(PipelineRun.id).all()]
+        count = len(all_run_ids)
+
+        if count == 0:
+            return jsonify({"deleted": 0})
+
+        # FK-safe cascade
+        AuditEvent.query.filter(AuditEvent.run_id.in_(all_run_ids)).delete(
+            synchronize_session=False
+        )
+
+        all_theme_ids = [t.id for t in Theme.query.with_entities(Theme.id).all()]
+        if all_theme_ids:
+            DraftTicket.query.filter(DraftTicket.theme_id.in_(all_theme_ids)).delete(
+                synchronize_session=False
+            )
+
+        Theme.query.delete()
+        FeedbackItem.query.delete()
+        PipelineRun.query.delete()
+        db.session.commit()
+
+    return jsonify({"deleted": count})
+
+
 @app.route("/runs", methods=["POST"])
 def create_run():
     """

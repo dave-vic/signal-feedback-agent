@@ -41,9 +41,30 @@ export async function createRun(file) {
   return request('POST', '/runs', form)
 }
 
+/** List all runs, newest first. Returns { runs: [...] }. */
+export async function getRuns() {
+  return request('GET', '/runs')
+}
+
 /** Get status and counts for a run. */
 export async function getRun(runId) {
   return request('GET', `/runs/${runId}`)
+}
+
+/** Permanently delete one run and all its themes, tickets, and audit data. */
+export async function deleteRun(runId) {
+  const res = await fetch(`/api/runs/${runId}`, { method: 'DELETE' })
+  if (!res.ok) {
+    let message = `${res.status} ${res.statusText}`
+    try { const err = await res.json(); message = err.error || message } catch (_) {}
+    throw new Error(message)
+  }
+  // 204 No Content — no body to parse
+}
+
+/** Permanently delete all runs. Returns { deleted: N }. */
+export async function deleteAllRuns() {
+  return request('DELETE', '/runs')
 }
 
 /** Get all themes for a run (sorted by priority). */

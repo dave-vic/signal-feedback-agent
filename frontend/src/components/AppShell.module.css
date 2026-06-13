@@ -138,6 +138,309 @@
 .navItemActive .navIcon,
 .navItem:hover .navIcon { opacity: 1; }
 
+/* ================================================================
+   RUN HISTORY — compact list below the Results nav items
+   ================================================================ */
+
+.historySection {
+  margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* allow flex child to scroll */
+}
+
+.historySectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-5) var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.historyLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.clearAllBtn {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius);
+  transition: color var(--transition), background var(--transition);
+  line-height: 1;
+}
+
+.clearAllBtn:hover {
+  color: #DC2626;
+  background: #FEF2F2;
+}
+
+.historyList {
+  flex: 1;
+  overflow-y: auto;
+  /* Subtle inner shadow to hint scrollability */
+  mask-image: linear-gradient(to bottom, transparent 0px, black 8px, black calc(100% - 8px), transparent 100%);
+}
+
+/* One run entry in the history list */
+.historyItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-5);
+  cursor: pointer;
+  border-radius: 0;
+  position: relative;
+  text-decoration: none;
+  transition: background var(--transition);
+  /* don't clip the delete button */
+  overflow: visible;
+}
+
+.historyItem:hover {
+  background: var(--color-surface-subtle);
+}
+
+.historyItem:hover .historyDeleteBtn {
+  opacity: 1;
+}
+
+/* Active run in history */
+.historyItemActive {
+  background: var(--color-surface-subtle);
+}
+
+.historyItemActive::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--color-text-primary);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Status dot */
+.historyDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.historyDot_complete        { background: #16A34A; }
+.historyDot_awaiting_review { background: #16A34A; }
+.historyDot_failed          { background: #DC2626; }
+.historyDot_processing      { background: #D97706; }
+
+/* Text column */
+.historyMeta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.historyFilename {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.historyItemActive .historyFilename {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.historySubline {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* Per-item delete button — hidden until hover */
+.historyDeleteBtn {
+  opacity: 0;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  transition: color var(--transition), background var(--transition), opacity var(--transition);
+  line-height: 1;
+}
+
+.historyDeleteBtn:hover {
+  color: #DC2626;
+  background: #FEF2F2;
+}
+
+/* Empty / loading states */
+.historyEmpty {
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+/* ================================================================
+   CONFIRM MODAL
+   ================================================================ */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-5);
+  /* Fade in */
+  animation: overlayIn 150ms ease;
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modalCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+  width: 100%;
+  max-width: 420px;
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  animation: cardIn 180ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modalIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.modalTitle {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.modalSubject {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  font-style: italic;
+}
+
+.modalBody {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+  margin: 0;
+}
+
+.modalWarning {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.modalActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.modalBtnCancel {
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.modalBtnCancel:hover {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border-strong);
+}
+
+.modalBtnDelete {
+  padding: 8px 18px;
+  background: #DC2626;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition), opacity var(--transition);
+}
+
+.modalBtnDelete:hover:not(:disabled) {
+  background: #B91C1C;
+}
+
+.modalBtnDelete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Bottom of sidebar */
 .sidebarFooter {
   margin-top: auto;
