@@ -1,9 +1,10 @@
 """
-Signal — Agent pipeline (Stages 0, 1, and 2)
-=============================================
+Signal — Agent pipeline (Stages 0, 1, 2, and 3)
+=================================================
 Stage 0: INGEST            — parse CSV into FeedbackItem rows
 Stage 1: TRIAGE            — classify items with qwen-turbo, mark exclusions, audit everything
 Stage 2: THEME SYNTHESIS   — group items into themes with qwen-max, validate evidence chain
+Stage 3: PRIORITIZATION    — score themes P1-P4 with qwen-max, write rationale
 
 This module has no Flask imports. It's pure Python that talks to the database
 and the Qwen API. app.py calls run_pipeline() in a background thread.
@@ -31,26 +32,46 @@ THEME_MODEL = "qwen-max"
 BATCH_SIZE = 10   # items per Qwen call during triage
 VALID_CATEGORIES = {"bug_report", "feature_request", "complaint", "praise", "noise"}
 
+# Timeout for qwen-max calls (theming, prioritization).
+# qwen-max on 180+ summaries can take 60-90s; 120s gives headroom for retries.
+QWEN_MAX_TIMEOUT = 120
+
+# Temperature for qwen-max calls — low value for near-deterministic output.
+# High temperature (default ~0.7-1.0) causes wildly different theme counts/groupings
+# across runs on identical input. 0.1 keeps output consistent without removing
+# all creativity.
+QWEN_MAX_TEMPERATURE = 0.1
+
 
 # ---------------------------------------------------------------------------
 # Qwen API helper
 # ---------------------------------------------------------------------------
 
-def _call_qwen(messages: list, model: str) -> dict:
+def _call_qwen(messages: list, model: str, temperature: float | None = None) -> dict:
     """
     Send a messages list to Qwen and return the raw response dict.
     Raises requests.RequestException on network/HTTP errors.
     The caller is responsible for parsing and validating the content.
+
+    temperature: pass QWEN_MAX_TEMPERATURE for qwen-max calls; omit for qwen-turbo
+                 (triage) which uses the model default.
     """
     api_key = os.environ.get("DASHSCOPE_API_KEY")
     if not api_key:
         raise RuntimeError("DASHSCOPE_API_KEY environment variable is not set")
 
+    # Determine timeout: qwen-max needs more headroom than qwen-turbo
+    timeout = QWEN_MAX_TIMEOUT if model == THEME_MODEL else 90
+
+    body: dict = {"model": model, "messages": messages}
+    if temperature is not None:
+        body["temperature"] = temperature
+
     resp = requests.post(
         QWEN_URL,
-        json={"model": model, "messages": messages},
+        json=body,
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        timeout=90,
+        timeout=timeout,
     )
     resp.raise_for_status()
     return resp.json()
@@ -68,6 +89,26 @@ def _extract_usage(qwen_response: dict) -> dict:
         "tokens_in": usage.get("prompt_tokens"),
         "tokens_out": usage.get("completion_tokens"),
     }
+
+
+def _parse_json_reply(text: str):
+    """
+    Parse a model reply as JSON, tolerantly.
+
+    qwen-max sometimes wraps its output in markdown code fences
+    (```json ... ```) even when explicitly told not to. This helper
+    strips those before parsing so a fence never causes a parse failure.
+
+    Returns the parsed Python object, or raises json.JSONDecodeError.
+    """
+    stripped = text.strip()
+    # Remove opening fence: ```json or ```
+    if stripped.startswith("```"):
+        stripped = stripped[stripped.index("\n") + 1:] if "\n" in stripped else stripped[3:]
+    # Remove closing fence
+    if stripped.endswith("```"):
+        stripped = stripped[: stripped.rfind("```")]
+    return json.loads(stripped.strip())
 
 
 # ---------------------------------------------------------------------------
@@ -482,19 +523,36 @@ def run_theme_synthesis(app, run_id: int):
         {"role": "user", "content": json.dumps(payload)},
     ]
 
-    # --- First attempt ---
-    try:
-        raw_response = _call_qwen(messages, THEME_MODEL)
-        reply_text = _extract_text(raw_response)
-        usage = _extract_usage(raw_response)
-    except requests.RequestException as e:
-        _write_audit(app, run_id, "theme_synthesis", "api_error",
-                     {"error": str(e)})
-        raise   # propagate to run_pipeline so the run is marked failed
+    # --- First attempt (with timeout retry) ---
+    # qwen-max on large payloads occasionally times out even at 120s.
+    # One silent retry saves the run in those cases.
+    raw_response = None
+    usage = {}
+    for attempt in range(2):
+        try:
+            raw_response = _call_qwen(messages, THEME_MODEL,
+                                      temperature=QWEN_MAX_TEMPERATURE)
+            usage = _extract_usage(raw_response)
+            break   # success — exit retry loop
+        except requests.Timeout as e:
+            if attempt == 0:
+                logger.warning("Theme synthesis: timeout on attempt 1, retrying")
+                _write_audit(app, run_id, "theme_synthesis", "timeout_retry",
+                             {"attempt": 1, "error": str(e)})
+            else:
+                _write_audit(app, run_id, "theme_synthesis", "api_error",
+                             {"error": str(e)})
+                raise   # both attempts timed out — propagate to run_pipeline
+        except requests.RequestException as e:
+            _write_audit(app, run_id, "theme_synthesis", "api_error",
+                         {"error": str(e)})
+            raise   # non-timeout errors fail immediately
 
-    # Parse the JSON
+    reply_text = _extract_text(raw_response)
+
+    # Parse the JSON — tolerant helper strips markdown fences if present
     try:
-        parsed = json.loads(reply_text)
+        parsed = _parse_json_reply(reply_text)
         if not isinstance(parsed, list):
             raise ValueError("Response is not a JSON array")
     except (json.JSONDecodeError, ValueError) as e:
@@ -524,10 +582,11 @@ def run_theme_synthesis(app, run_id: int):
         ]
 
         try:
-            raw_response = _call_qwen(retry_messages, THEME_MODEL)
+            raw_response = _call_qwen(retry_messages, THEME_MODEL,
+                                      temperature=QWEN_MAX_TEMPERATURE)
             reply_text = _extract_text(raw_response)
             usage = _extract_usage(raw_response)
-            parsed = json.loads(reply_text)
+            parsed = _parse_json_reply(reply_text)
             themes, bad_ids = _validate_theme_response(parsed, valid_ids)
         except (requests.RequestException, json.JSONDecodeError) as e:
             _write_audit(app, run_id, "theme_synthesis", "retry_error",
@@ -607,27 +666,105 @@ def run_theme_synthesis(app, run_id: int):
         logger.warning("Theme synthesis: %d orphaned items found, recovering", len(orphan_ids))
         _recover_orphans(app, run_id, orphan_ids, written_theme_dicts, items_by_id)
 
-    # --- Coherence check ---
-    # Warn if any single theme absorbed more than 40% of all items.
-    # This catches "black hole" themes where the model collapsed unrelated
-    # items into one catch-all bucket.
+    # --- Coherence check + automatic retry ---
+    # If any single theme holds >40% of items the model likely collapsed
+    # unrelated problems into a catch-all bucket. Retry once with an explicit
+    # warning that names the oversized theme and forbids it as a catch-all.
     total_items = len(valid_ids)
-    for t in written_theme_dicts:
-        pct = len(t["item_ids"]) / total_items if total_items else 0
-        if pct > 0.40:
-            logger.warning(
-                "Theme coherence warning: theme %d '%s' holds %.0f%% of items (%d/%d)",
-                t["id"], t["title"], pct * 100, len(t["item_ids"]), total_items,
-            )
-            _write_audit(app, run_id, "theme_synthesis", "theme_coherence_warning", {
-                "theme_id": t["id"],
-                "theme_title": t["title"],
-                "item_count": len(t["item_ids"]),
-                "total_items": total_items,
-                "pct": round(pct * 100, 1),
-                "note": "Theme holds >40% of items — possible catch-all collapse. "
-                        "Consider re-running theming stage.",
+    oversized = [
+        t for t in written_theme_dicts
+        if total_items and len(t["item_ids"]) / total_items > 0.40
+    ]
+    if oversized:
+        bad_theme = oversized[0]
+        pct = round(len(bad_theme["item_ids"]) / total_items * 100, 1)
+        logger.warning(
+            "Theme coherence failure: '%s' holds %s%% of items — retrying synthesis",
+            bad_theme["title"], pct,
+        )
+        _write_audit(app, run_id, "theme_synthesis", "theme_coherence_warning", {
+            "theme_title": bad_theme["title"],
+            "item_count": len(bad_theme["item_ids"]),
+            "total_items": total_items,
+            "pct": pct,
+            "action": "retrying theme synthesis with stricter instructions",
+        })
+
+        # Build a corrective user message that names the problem explicitly
+        coherence_warning = (
+            f"IMPORTANT: in your previous attempt, a theme called "
+            f"'{bad_theme['title']}' absorbed {pct}% of all items. "
+            f"This is a catch-all collapse — unrelated problems were lumped together. "
+            f"You MUST create between 7 and 12 distinct themes. "
+            f"Do NOT create any theme that groups items with different root causes. "
+            f"Separate app performance, login/OTP issues, transfer failures, "
+            f"customer support, and fees into their own themes."
+        )
+        coherence_retry_messages = [
+            {"role": "system", "content": THEME_PROMPT},
+            {"role": "user", "content": coherence_warning + "\n\n" + json.dumps(payload)},
+        ]
+
+        try:
+            retry_response = _call_qwen(coherence_retry_messages, THEME_MODEL,
+                                        temperature=QWEN_MAX_TEMPERATURE)
+            retry_text = _extract_text(retry_response)
+            retry_usage = _extract_usage(retry_response)
+            retry_parsed = _parse_json_reply(retry_text)
+            retry_themes, retry_bad_ids = _validate_theme_response(retry_parsed, valid_ids)
+
+            if retry_themes:
+                # Replace the written themes with the better grouping
+                with app.app_context():
+                    # Delete the oversized theme set and rewrite
+                    for old_t in Theme.query.filter_by(run_id=run_id).all():
+                        db.session.delete(old_t)
+                    db.session.commit()
+
+                    for theme_data in retry_themes:
+                        sources = _compute_sources_breakdown(theme_data["item_ids"],
+                                                             items_by_id)
+                        db.session.add(Theme(
+                            run_id=run_id,
+                            title=theme_data["title"],
+                            problem_statement=theme_data["problem_statement"],
+                            item_ids=json.dumps(theme_data["item_ids"]),
+                            sources_breakdown=json.dumps(sources),
+                        ))
+                    db.session.commit()
+
+                    # Refresh written_theme_dicts from the new rows
+                    written_theme_dicts = [
+                        {
+                            "id": t.id,
+                            "title": t.title,
+                            "problem_statement": t.problem_statement,
+                            "item_ids": json.loads(t.item_ids or "[]"),
+                        }
+                        for t in Theme.query.filter_by(run_id=run_id).all()
+                    ]
+                    # Update run counts
+                    run = db.session.get(PipelineRun, run_id)
+                    counts = json.loads(run.counts_json) if run.counts_json else {}
+                    counts["themes"] = len(retry_themes)
+                    run.counts_json = json.dumps(counts)
+                    db.session.commit()
+
+                _write_audit(app, run_id, "theme_synthesis", "coherence_retry_succeeded", {
+                    "new_theme_count": len(retry_themes),
+                    "previous_oversized_theme": bad_theme["title"],
+                }, model=THEME_MODEL,
+                   tokens_in=retry_usage.get("tokens_in"),
+                   tokens_out=retry_usage.get("tokens_out"))
+                logger.info("Coherence retry succeeded: %d themes", len(retry_themes))
+
+        except (requests.RequestException, json.JSONDecodeError, ValueError) as e:
+            # Retry failed — log it and continue with the original (imperfect) themes
+            _write_audit(app, run_id, "theme_synthesis", "coherence_retry_failed", {
+                "error": str(e),
+                "note": "Keeping original themes despite coherence warning",
             })
+            logger.error("Coherence retry failed: %s — keeping original themes", e)
 
     logger.info("Theme synthesis complete: %d themes from %d items", themes_created, len(items))
 
@@ -669,10 +806,11 @@ def _recover_orphans(app, run_id: int, orphan_ids: set,
 
     assignments = []
     try:
-        raw_response = _call_qwen(messages, THEME_MODEL)
+        raw_response = _call_qwen(messages, THEME_MODEL,
+                                  temperature=QWEN_MAX_TEMPERATURE)
         reply_text = _extract_text(raw_response)
         usage = _extract_usage(raw_response)
-        parsed = json.loads(reply_text)
+        parsed = _parse_json_reply(reply_text)
 
         # Validate: each entry must have item_id in orphan set, theme_id in existing set
         for entry in parsed:
@@ -789,17 +927,31 @@ def run_prioritization(app, run_id: int):
         {"role": "user", "content": json.dumps(payload)},
     ]
 
-    # --- First attempt ---
-    try:
-        raw_response = _call_qwen(messages, THEME_MODEL)
-        reply_text = _extract_text(raw_response)
-        usage = _extract_usage(raw_response)
-    except requests.RequestException as e:
-        _write_audit(app, run_id, "prioritization", "api_error", {"error": str(e)})
-        raise
+    # --- First attempt (with timeout retry) ---
+    raw_response = None
+    usage = {}
+    for attempt in range(2):
+        try:
+            raw_response = _call_qwen(messages, THEME_MODEL,
+                                      temperature=QWEN_MAX_TEMPERATURE)
+            usage = _extract_usage(raw_response)
+            break
+        except requests.Timeout as e:
+            if attempt == 0:
+                logger.warning("Prioritization: timeout on attempt 1, retrying")
+                _write_audit(app, run_id, "prioritization", "timeout_retry",
+                             {"attempt": 1, "error": str(e)})
+            else:
+                _write_audit(app, run_id, "prioritization", "api_error", {"error": str(e)})
+                raise
+        except requests.RequestException as e:
+            _write_audit(app, run_id, "prioritization", "api_error", {"error": str(e)})
+            raise
+
+    reply_text = _extract_text(raw_response)
 
     try:
-        parsed = json.loads(reply_text)
+        parsed = _parse_json_reply(reply_text)
         if not isinstance(parsed, list):
             raise ValueError("Response is not a JSON array")
     except (json.JSONDecodeError, ValueError) as e:
@@ -826,10 +978,11 @@ def run_prioritization(app, run_id: int):
             )},
         ]
         try:
-            raw_response = _call_qwen(retry_messages, THEME_MODEL)
+            raw_response = _call_qwen(retry_messages, THEME_MODEL,
+                                      temperature=QWEN_MAX_TEMPERATURE)
             reply_text = _extract_text(raw_response)
             usage = _extract_usage(raw_response)
-            parsed = json.loads(reply_text)
+            parsed = _parse_json_reply(reply_text)
             results, bad_entries = _validate_priority_response(parsed, valid_theme_ids)
         except (requests.RequestException, json.JSONDecodeError) as e:
             _write_audit(app, run_id, "prioritization", "retry_error",
