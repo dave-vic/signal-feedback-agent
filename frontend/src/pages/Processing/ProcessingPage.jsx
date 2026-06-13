@@ -5,20 +5,19 @@ import styles from './ProcessingPage.module.css'
 
 // ---------------------------------------------------------------------------
 // Stage definitions — in pipeline order.
-// activeStatus is the backend status string that means "this stage is running."
+// icon: a small monochrome unicode symbol matching the stage's nature.
 // ---------------------------------------------------------------------------
 const STAGES = [
-  { key: 'ingest',   label: 'Ingesting feedback',  activeStatus: 'ingesting'    },
-  { key: 'triage',   label: 'Triaging items',       activeStatus: 'triaging'     },
-  { key: 'theme',    label: 'Finding themes',       activeStatus: 'theming'      },
-  { key: 'priority', label: 'Prioritizing themes',  activeStatus: 'prioritizing' },
-  { key: 'draft',    label: 'Drafting tickets',     activeStatus: 'drafting'     },
+  { key: 'ingest',   label: 'Ingesting',   icon: '↓', activeStatus: 'ingesting'    },
+  { key: 'triage',   label: 'Triaging',    icon: '⊟', activeStatus: 'triaging'     },
+  { key: 'theme',    label: 'Theming',     icon: '◈', activeStatus: 'theming'      },
+  { key: 'priority', label: 'Prioritizing',icon: '↑', activeStatus: 'prioritizing' },
+  { key: 'draft',    label: 'Drafting',    icon: '✎', activeStatus: 'drafting'     },
 ]
 
-const STATUS_ORDER    = ['ingesting', 'triaging', 'theming', 'prioritizing', 'drafting']
-const TERMINAL        = new Set(['awaiting_review', 'complete', 'failed'])
+const STATUS_ORDER = ['ingesting', 'triaging', 'theming', 'prioritizing', 'drafting']
+const TERMINAL     = new Set(['awaiting_review', 'complete', 'failed'])
 
-/** Return 'pending' | 'active' | 'complete' for each stage given run status. */
 function deriveStageStates(status) {
   if (status === 'awaiting_review' || status === 'complete') {
     return STAGES.map(() => 'complete')
@@ -34,7 +33,6 @@ function deriveStageStates(status) {
   })
 }
 
-// Live counter definitions — key maps to run.counts object
 const COUNTERS = [
   { key: 'items_total', label: 'items' },
   { key: 'excluded',    label: 'excluded' },
@@ -43,28 +41,32 @@ const COUNTERS = [
 ]
 
 // ---------------------------------------------------------------------------
-// StagePill — renders one stage row as a tinted pill.
-// pending = grey, active = blue + spinner, complete = green + checkmark.
+// StageRow — icon · label · bar · status text, in a CSS grid.
 // ---------------------------------------------------------------------------
-function StagePill({ label, state }) {
-  const pillCls  = `${styles.stagePill} ${styles[`stagePill_${state}`]}`
-  const labelCls = `${styles.pillLabel} ${styles[`pillLabel_${state}`]}`
-
-  let icon
-  if (state === 'complete') {
-    icon = <span className={`${styles.pillIcon} ${styles.pillIcon_complete}`}>✓</span>
-  } else if (state === 'active') {
-    icon = <div className={styles.spinner} />
-  } else {
-    icon = <span className={`${styles.pillIcon} ${styles.pillIcon_pending}`}>○</span>
-  }
+function StageRow({ icon, label, state }) {
+  const statusText = { pending: '', active: 'Running', complete: 'Done' }
 
   return (
-    <div className={pillCls}>
-      {icon}
-      <span className={labelCls}>
-        {label}{state === 'active' ? '…' : ''}
+    <div className={styles.stageRow}>
+      {/* Icon — spans both grid rows */}
+      <span className={`${styles.stageIcon} ${styles[`stageIcon_${state}`]}`}>
+        {icon}
       </span>
+
+      {/* Label */}
+      <span className={`${styles.stageLabel} ${styles[`stageLabel_${state}`]}`}>
+        {label}
+      </span>
+
+      {/* Status text */}
+      <span className={`${styles.stageStatus} ${styles[`stageStatus_${state}`]}`}>
+        {statusText[state]}
+      </span>
+
+      {/* Bar track + fill (spans label + status columns) */}
+      <div className={styles.barTrack}>
+        <div className={`${styles.barFill} ${styles[`barFill_${state}`]}`} />
+      </div>
     </div>
   )
 }
@@ -100,7 +102,7 @@ export default function ProcessingPage() {
     return stopPolling
   }, [runId])
 
-  // Loading (first poll not back yet)
+  // Loading
   if (!run && !error) {
     return (
       <div className={styles.page}>
@@ -111,7 +113,7 @@ export default function ProcessingPage() {
     )
   }
 
-  // Network / fetch error
+  // Network error
   if (error) {
     return (
       <div className={styles.page}>
@@ -169,7 +171,7 @@ export default function ProcessingPage() {
     )
   }
 
-  // In-progress: live checklist
+  // In-progress
   const stageStates = deriveStageStates(status)
 
   return (
@@ -183,8 +185,9 @@ export default function ProcessingPage() {
 
         <div className={styles.stages}>
           {STAGES.map((stage, i) => (
-            <StagePill
+            <StageRow
               key={stage.key}
+              icon={stage.icon}
               label={stage.label}
               state={stageStates[i]}
             />
