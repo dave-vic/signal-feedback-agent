@@ -38,7 +38,7 @@
   border-left-width: 4px;
   border-left-color: var(--color-border-strong);
   border-radius: 12px;
-  padding: var(--space-7) var(--space-7) var(--space-6);
+  padding: var(--space-6) var(--space-6) var(--space-5);
   background: var(--color-surface);
   box-shadow: 0 1px 4px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04);
   margin-bottom: var(--space-8);
