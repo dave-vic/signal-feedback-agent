@@ -415,10 +415,10 @@ export default function AppShell({ children }) {
           aria-label="Open navigation"
           aria-expanded={drawerOpen}
         >
-          <svg width="18" height="14" viewBox="0 0 18 14" fill="none" aria-hidden="true">
-            <rect x="0" y="0"  width="18" height="2" rx="1" fill="currentColor" />
-            <rect x="0" y="6"  width="13" height="2" rx="1" fill="currentColor" />
-            <rect x="0" y="12" width="18" height="2" rx="1" fill="currentColor" />
+          <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden="true">
+            <rect x="0" y="0" width="14" height="1.5" rx="0.75" fill="currentColor" />
+            <rect x="0" y="4.75" width="10" height="1.5" rx="0.75" fill="currentColor" />
+            <rect x="0" y="9.5" width="14" height="1.5" rx="0.75" fill="currentColor" />
           </svg>
         </button>
       </header>

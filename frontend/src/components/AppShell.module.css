@@ -633,8 +633,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 38px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
     padding: 0;
     background: var(--color-surface);
     border: 1.5px solid var(--color-border);
