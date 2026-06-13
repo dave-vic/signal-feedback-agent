@@ -1,46 +1,59 @@
 /* =========================================================
    Signal — Design Tokens & Global Reset
-   All colours, fonts, and spacing live here as CSS variables.
-   Components reference these variables; nothing is hardcoded.
+   Two fonts: Playfair Display (headlines) + Inter (everything else).
+   Monochrome palette with functional priority colours only.
    ========================================================= */
 
 :root {
-  /* Colour palette */
-  --color-bg:          #F9F9F8;   /* page background — warm off-white */
-  --color-surface:     #FFFFFF;   /* cards, panels, drop zone */
-  --color-border:      #E2E2DF;   /* subtle dividers */
-  --color-border-hover:#C7C7C2;   /* border on hover */
+  /* ---- Colour palette ---- */
 
-  --color-text-primary:   #1A1A1A;  /* headlines, body */
-  --color-text-secondary: #6B7280;  /* subtitles, metadata, hints */
-  --color-text-disabled:  #A0A0A0;
+  /* Backgrounds */
+  --color-bg:             #FAFAF9;   /* page — barely-warm white, not stark */
+  --color-surface:        #FFFFFF;   /* cards, sidebar, panels */
+  --color-surface-subtle: #F5F5F4;   /* hover fills, drop zone background */
+  --color-surface-hover:  #F0F0EF;   /* deeper hover */
 
-  --color-accent:         #2563EB;  /* buttons, active states, links */
-  --color-accent-hover:   #1D4ED8;
-  --color-accent-light:   #EFF6FF;  /* tinted background for accent elements */
+  /* Borders */
+  --color-border:         #E8E8E5;   /* default card border — very soft */
+  --color-border-strong:  #D1D1CE;   /* slightly more visible on hover */
 
-  --color-success:        #16A34A;
-  --color-warning:        #D97706;
-  --color-danger:         #DC2626;  /* P1 badges */
-  --color-danger-light:   #FEF2F2;
+  /* Text */
+  --color-text-primary:   #111111;   /* headlines, labels — near black */
+  --color-text-secondary: #6B7280;   /* subtitles, metadata */
+  --color-text-tertiary:  #9CA3AF;   /* hints, placeholders, disabled */
 
-  /* Priority badge colours */
-  --color-p1-bg:   #FEF2F2;  --color-p1-text: #DC2626;
-  --color-p2-bg:   #FFF7ED;  --color-p2-text: #C2410C;
-  --color-p3-bg:   #FEFCE8;  --color-p3-text: #92400E;
-  --color-p4-bg:   #F0FDF4;  --color-p4-text: #166534;
+  /* Accent — intentionally monochrome (like Manus) */
+  --color-accent:         #111111;   /* primary button = black */
+  --color-accent-hover:   #333333;
+  --color-accent-text:    #FFFFFF;   /* text on black buttons */
+  --color-accent-subtle:  #F5F5F4;   /* ghost / secondary button fill */
 
-  /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-size-xs:   0.75rem;   /* 12px */
-  --font-size-sm:   0.875rem;  /* 14px */
-  --font-size-base: 1rem;      /* 16px */
-  --font-size-lg:   1.125rem;  /* 18px */
-  --font-size-xl:   1.25rem;   /* 20px */
-  --font-size-2xl:  1.5rem;    /* 24px */
-  --font-size-3xl:  1.875rem;  /* 30px */
+  /* Functional colours — used ONLY for priority badges and status pills */
+  --color-p1-bg:    #FEF2F2;  --color-p1-text: #B91C1C;
+  --color-p2-bg:    #FFF7ED;  --color-p2-text: #C2410C;
+  --color-p3-bg:    #FEFCE8;  --color-p3-text: #92400E;
+  --color-p4-bg:    #F0FDF4;  --color-p4-text: #166534;
 
-  /* Spacing scale */
+  --color-success:       #16A34A;
+  --color-danger:        #DC2626;
+  --color-danger-light:  #FEF2F2;
+  --color-warning-light: #FFF7ED;
+
+  /* ---- Typography ---- */
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Scale */
+  --font-size-xs:      0.75rem;    /* 12px — labels, caps */
+  --font-size-sm:      0.8125rem;  /* 13px — metadata, hints */
+  --font-size-base:    0.9375rem;  /* 15px — body text */
+  --font-size-md:      1rem;       /* 16px */
+  --font-size-lg:      1.125rem;   /* 18px — card titles */
+  --font-size-xl:      1.375rem;   /* 22px — section headings */
+  --font-size-2xl:     1.75rem;    /* 28px — page titles */
+  --font-size-display: 2.25rem;    /* 36px — hero headline (serif) */
+
+  /* ---- Spacing ---- */
   --space-1:  0.25rem;
   --space-2:  0.5rem;
   --space-3:  0.75rem;
@@ -52,17 +65,23 @@
   --space-12: 3rem;
   --space-16: 4rem;
 
-  /* Shape */
-  --radius-sm: 4px;
-  --radius:    8px;
-  --radius-lg: 12px;
+  /* ---- Shape ---- */
+  --radius-sm:  4px;
+  --radius:     8px;
+  --radius-md:  10px;   /* cards */
+  --radius-lg:  14px;   /* drop zone, large panels */
+  --radius-full: 999px; /* pills */
 
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow:    0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+  /* ---- Elevation — deliberately very subtle ---- */
+  --shadow-xs:  0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:  0 4px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
 
-  /* Transitions */
-  --transition: 150ms ease;
+  /* ---- Sidebar ---- */
+  --sidebar-width: 220px;
+
+  /* ---- Transition ---- */
+  --transition: 140ms ease;
 }
 
 /* ---- Reset ---- */
@@ -75,6 +94,7 @@
 html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -86,22 +106,38 @@ body {
 }
 
 a {
-  color: var(--color-accent);
+  color: inherit;
   text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
 }
 
 button {
   font-family: inherit;
   cursor: pointer;
+  border: none;
+  background: none;
 }
 
-/* ---- Utility classes used across screens ---- */
-.container {
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 0 var(--space-6);
+/* ---- Shared typography helpers ---- */
+.display-heading {
+  font-family: var(--font-serif);
+  font-size: var(--font-size-display);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.section-label {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+/* ---- Layout helper ---- */
+.page-content {
+  max-width: 860px;
+  padding: var(--space-12) var(--space-10);
 }

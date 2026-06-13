@@ -1,0 +1,30 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+/* Priority badges */
+.variant_p1 { background: var(--color-p1-bg); color: var(--color-p1-text); }
+.variant_p2 { background: var(--color-p2-bg); color: var(--color-p2-text); }
+.variant_p3 { background: var(--color-p3-bg); color: var(--color-p3-text); }
+.variant_p4 { background: var(--color-p4-bg); color: var(--color-p4-text); }
+
+/* Status badges */
+.variant_status-pending  { background: #EFF6FF; color: #1D4ED8; }
+.variant_status-complete { background: var(--color-p4-bg); color: var(--color-p4-text); }
+.variant_status-failed   { background: var(--color-danger-light); color: var(--color-danger); }
+.variant_status-running  { background: var(--color-warning-light); color: #92400E; }
+
+/* Neutral — count chips, misc labels */
+.variant_neutral {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}

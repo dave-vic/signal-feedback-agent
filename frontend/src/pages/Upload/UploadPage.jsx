@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { createRun, getRun } from '../../api.js'
+import Badge from '../../components/Badge.jsx'
 import styles from './UploadPage.module.css'
 
 // ---------------------------------------------------------------------------
-// Sample dataset
-// Embedded here so "Try sample dataset" works with zero backend setup.
-// Uses the same columns the pipeline expects: source, text.
+// Sample dataset — embedded so "Try sample dataset" works with zero setup.
 // ---------------------------------------------------------------------------
 const SAMPLE_CSV = `source,text,date,rating
 app_store,"The app crashed three times during my transfer and my money disappeared. I had to call support four times and still haven't got a refund.",2024-01-15,1
@@ -26,29 +25,35 @@ nps,"Customer service agent was really helpful and resolved my issue within the 
 support,"Balance shown in the app doesn't match my actual bank balance. Off by £12.40 for the past three days.",2024-02-01,
 `
 
-function csvToFile(csvString, filename = 'sample-feedback.csv') {
-  const blob = new Blob([csvString], { type: 'text/csv' })
+function csvToFile(csv, filename = 'sample-feedback.csv') {
+  const blob = new Blob([csv], { type: 'text/csv' })
   return new File([blob], filename, { type: 'text/csv' })
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Format a run into the "story card" line from ARCHITECTURE.md §5. */
 function runStory(run) {
-  const counts = run.counts || {}
+  const c = run.counts || {}
   const parts = []
-  if (counts.items_total) parts.push(`${counts.items_total} items`)
-  if (counts.themes)      parts.push(`${counts.themes} themes`)
-  if (counts.tickets)     parts.push(`${counts.tickets} tickets`)
+  if (c.items_total) parts.push(`${c.items_total} items`)
+  if (c.themes)      parts.push(`${c.themes} themes`)
+  if (c.tickets)     parts.push(`${c.tickets} tickets`)
   return parts.length ? parts.join(' → ') : run.filename
 }
 
-/** Human-readable date, e.g. "11 Jun". */
 function fmtDate(iso) {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+function statusBadgeVariant(status) {
+  switch (status) {
+    case 'awaiting_review': return 'status-pending'
+    case 'complete':        return 'status-complete'
+    case 'failed':          return 'status-failed'
+    default:                return 'status-running'
+  }
 }
 
 function statusLabel(status) {
@@ -60,40 +65,25 @@ function statusLabel(status) {
   }
 }
 
-function statusClass(status, styles) {
-  switch (status) {
-    case 'awaiting_review': return styles.statusPending
-    case 'complete':        return styles.statusComplete
-    case 'failed':          return styles.statusFailed
-    default:                return styles.statusProcessing
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 export default function UploadPage() {
   const navigate = useNavigate()
 
-  // ---------- state ----------
   const [isDragOver, setIsDragOver]   = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError]             = useState(null)
-  const [pastRuns, setPastRuns]       = useState([])   // loaded from localStorage
-  const fileInputRef = useRef(null)
+  const [pastRuns, setPastRuns]       = useState([])
 
-  // ---------- load past runs from localStorage ----------
-  // We persist run IDs in localStorage so past runs survive a page refresh.
-  // On mount, we fetch their current status from the backend.
+  // Load past run statuses from localStorage on mount
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem('signal_run_ids') || '[]')
     if (!stored.length) return
-
     Promise.all(stored.map(id => getRun(id).catch(() => null)))
       .then(runs => setPastRuns(runs.filter(Boolean).reverse()))
   }, [])
 
-  // ---------- save a run id after upload ----------
   function persistRunId(id) {
     const stored = JSON.parse(localStorage.getItem('signal_run_ids') || '[]')
     if (!stored.includes(id)) {
@@ -101,17 +91,14 @@ export default function UploadPage() {
     }
   }
 
-  // ---------- upload handler (used for both file drop and sample) ----------
   const handleUpload = useCallback(async (file) => {
     if (!file) return
     if (!file.name.toLowerCase().endsWith('.csv')) {
       setError('Please upload a CSV file.')
       return
     }
-
     setError(null)
     setIsUploading(true)
-
     try {
       const { run_id } = await createRun(file)
       persistRunId(run_id)
@@ -122,57 +109,29 @@ export default function UploadPage() {
     }
   }, [navigate])
 
-  // ---------- drag-and-drop handlers ----------
-  function onDragOver(e) {
-    e.preventDefault()
-    setIsDragOver(true)
-  }
+  function onDragOver(e)  { e.preventDefault(); setIsDragOver(true) }
+  function onDragLeave()  { setIsDragOver(false) }
+  function onDrop(e)      { e.preventDefault(); setIsDragOver(false); handleUpload(e.dataTransfer.files[0]) }
+  function onFileChange(e){ handleUpload(e.target.files[0]); e.target.value = '' }
+  function onSampleClick(){ handleUpload(csvToFile(SAMPLE_CSV)) }
 
-  function onDragLeave() {
-    setIsDragOver(false)
-  }
-
-  function onDrop(e) {
-    e.preventDefault()
-    setIsDragOver(false)
-    const file = e.dataTransfer.files[0]
-    handleUpload(file)
-  }
-
-  function onFileInputChange(e) {
-    const file = e.target.files[0]
-    handleUpload(file)
-    // Reset input so the same file can be re-uploaded if needed
-    e.target.value = ''
-  }
-
-  function onSampleClick() {
-    handleUpload(csvToFile(SAMPLE_CSV))
-  }
-
-  // ---------- render ----------
   const hasPastRuns = pastRuns.length > 0
 
   const dropZoneClass = [
     styles.dropZone,
-    isDragOver    ? styles.dropZoneActive    : '',
-    isUploading   ? styles.dropZoneUploading : '',
+    isDragOver  ? styles.dropZoneActive    : '',
+    isUploading ? styles.dropZoneUploading : '',
   ].filter(Boolean).join(' ')
 
   return (
     <div className={styles.page}>
-      {/* Nav */}
-      <nav className={styles.nav}>
-        <span className={styles.wordmark}>
-          Signal<span className={styles.wordmarkDot}>.</span>
-        </span>
-      </nav>
 
       {/* Hero */}
       <div className={styles.hero}>
         <h1 className={styles.headline}>
           Drop in your raw feedback.<br />
-          Get back a prioritized roadmap — with receipts.
+          Get back a prioritized roadmap —<br />
+          with receipts.
         </h1>
         <p className={styles.subtitle}>
           Upload a CSV of reviews, tickets, and survey comments. Signal triages,
@@ -180,7 +139,7 @@ export default function UploadPage() {
         </p>
       </div>
 
-      {/* Empty-state onboarding — only shown before first run */}
+      {/* Empty-state onboarding — only before first run */}
       {!hasPastRuns && (
         <div className={styles.emptyState}>
           <div className={styles.steps}>
@@ -188,24 +147,21 @@ export default function UploadPage() {
               <div className={styles.stepNumber}>1</div>
               <div className={styles.stepTitle}>Upload messy feedback</div>
               <div className={styles.stepDesc}>
-                Drop a CSV of app reviews, support tickets, or NPS comments.
-                Mix of sources is fine.
+                Drop a CSV of app reviews, support tickets, or NPS comments. Mix of sources is fine.
               </div>
             </div>
             <div className={styles.step}>
               <div className={styles.stepNumber}>2</div>
               <div className={styles.stepTitle}>Signal finds themes & drafts tickets</div>
               <div className={styles.stepDesc}>
-                The AI triages, clusters into themes by user problem, prioritises
-                P1–P4, and writes sprint-ready tickets — with evidence.
+                The AI triages, clusters into themes by user problem, prioritises P1–P4, and writes sprint-ready tickets — with evidence.
               </div>
             </div>
             <div className={styles.step}>
               <div className={styles.stepNumber}>3</div>
               <div className={styles.stepTitle}>You review and approve</div>
               <div className={styles.stepDesc}>
-                Nothing goes to Jira without your say-so. Edit, approve, or
-                reject each ticket. Every decision is logged.
+                Nothing goes to Jira without your say-so. Edit, approve, or reject each ticket. Every decision is logged.
               </div>
             </div>
           </div>
@@ -214,39 +170,32 @@ export default function UploadPage() {
 
       {/* Upload zone */}
       <div className={styles.uploadSection}>
+        <div className={styles.sectionLabel}>Upload feedback</div>
+
         <div
           className={dropZoneClass}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           onDrop={onDrop}
         >
-          {/* The real file input is invisible but covers the whole drop zone */}
           <input
-            ref={fileInputRef}
             type="file"
             accept=".csv"
             className={styles.fileInput}
-            onChange={onFileInputChange}
+            onChange={onFileChange}
             disabled={isUploading}
           />
-
-          <span className={styles.uploadIcon}>
-            {isUploading ? '⏳' : '📂'}
-          </span>
-
+          <div className={styles.uploadIconWrap}>
+            {isUploading ? '⏳' : '↑'}
+          </div>
           <div className={styles.dropLabel}>
-            {isUploading
-              ? 'Uploading…'
-              : 'Drag a CSV here, or click to browse'}
+            {isUploading ? 'Uploading…' : 'Drag a CSV here, or click to browse'}
           </div>
           <div className={styles.dropSub}>
-            {isUploading
-              ? 'Starting the pipeline…'
-              : 'One file at a time'}
+            {isUploading ? 'Starting the pipeline…' : 'One file at a time'}
           </div>
-
           <p className={styles.formatNote}>
-            Expected columns: <strong>source</strong>, <strong>text</strong> — extra columns are fine, we'll ignore them.
+            Expected columns: <strong>source</strong>, <strong>text</strong> — extra columns are ignored
           </p>
         </div>
 
@@ -257,13 +206,14 @@ export default function UploadPage() {
           onClick={onSampleClick}
           disabled={isUploading}
         >
+          <span className={styles.sampleIcon}>◈</span>
           Try the sample dataset — 15 feedback items across app reviews, support tickets &amp; NPS
         </button>
 
         {error && <div className={styles.error}>{error}</div>}
       </div>
 
-      {/* Past runs — shown once at least one run exists */}
+      {/* Past runs */}
       {hasPastRuns && (
         <div className={styles.pastRuns}>
           <div className={styles.pastRunsHeading}>Recent runs</div>
@@ -275,17 +225,16 @@ export default function UploadPage() {
             >
               <div>
                 <div className={styles.runStory}>{runStory(run)}</div>
-                <div className={styles.runMeta}>
-                  {run.filename} · {fmtDate(run.started_at)}
-                </div>
+                <div className={styles.runMeta}>{run.filename} · {fmtDate(run.started_at)}</div>
               </div>
-              <span className={`${styles.runStatus} ${statusClass(run.status, styles)}`}>
+              <Badge variant={statusBadgeVariant(run.status)}>
                 {statusLabel(run.status)}
-              </span>
+              </Badge>
             </Link>
           ))}
         </div>
       )}
+
     </div>
   )
 }

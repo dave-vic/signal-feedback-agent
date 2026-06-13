@@ -1,134 +1,123 @@
 /* =========================================================
-   Upload Page — CSS Module
-   All class names here are scoped to UploadPage.jsx only.
+   Upload Page — CSS Module (restyled for Signal design system)
    ========================================================= */
 
 .page {
-  min-height: 100vh;
-  padding: var(--space-16) var(--space-6) var(--space-12);
+  padding: var(--space-12) var(--space-10);
+  max-width: 860px;
 }
 
-/* ---- Nav bar ---- */
-.nav {
-  display: flex;
-  align-items: center;
-  max-width: 780px;
-  margin: 0 auto var(--space-12);
-}
-
-.wordmark {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--color-text-primary);
-}
-
-.wordmarkDot {
-  color: var(--color-accent);
-}
-
-/* ---- Hero headline (shown above upload zone) ---- */
+/* ---- Hero ---- */
 .hero {
-  max-width: 780px;
-  margin: 0 auto var(--space-8);
+  margin-bottom: var(--space-10);
 }
 
 .headline {
-  font-size: var(--font-size-3xl);
+  font-family: var(--font-serif);
+  font-size: var(--font-size-display);
   font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.03em;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   color: var(--color-text-primary);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .subtitle {
   font-size: var(--font-size-base);
   color: var(--color-text-secondary);
-  max-width: 520px;
-  line-height: 1.65;
+  max-width: 500px;
+  line-height: 1.7;
 }
 
-/* ---- Empty-state onboarding (shown before first run) ---- */
+/* ---- Empty-state onboarding ---- */
 .emptyState {
-  max-width: 780px;
-  margin: 0 auto var(--space-10);
+  margin-bottom: var(--space-10);
 }
 
 .steps {
-  display: flex;
-  gap: var(--space-6);
-  margin-bottom: var(--space-8);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
 }
 
 .step {
-  flex: 1;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5) var(--space-5);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-xs);
 }
 
 .stepNumber {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: var(--color-accent-light);
-  color: var(--color-accent);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   font-weight: 700;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .stepTitle {
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-primary);
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--space-2);
+  line-height: 1.4;
 }
 
 .stepDesc {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
-/* ---- Upload zone ---- */
+/* ---- Upload section ---- */
 .uploadSection {
-  max-width: 780px;
-  margin: 0 auto var(--space-10);
+  margin-bottom: var(--space-12);
 }
 
+.sectionLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-3);
+}
+
+/* Drop zone */
 .dropZone {
+  position: relative;
   background: var(--color-surface);
-  border: 2px dashed var(--color-border);
+  border: 1.5px dashed var(--color-border-strong);
   border-radius: var(--radius-lg);
   padding: var(--space-12) var(--space-8);
   text-align: center;
   cursor: pointer;
   transition: border-color var(--transition), background var(--transition);
-  position: relative;
 }
 
 .dropZone:hover {
-  border-color: var(--color-accent);
-  background: var(--color-accent-light);
+  border-color: var(--color-text-tertiary);
+  background: var(--color-surface-subtle);
 }
 
 .dropZoneActive {
-  border-color: var(--color-accent);
-  background: var(--color-accent-light);
+  border-color: var(--color-text-primary);
+  background: var(--color-surface-subtle);
 }
 
 .dropZoneUploading {
   pointer-events: none;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
-/* Hidden real file input — we style the visible dropZone instead */
 .fileInput {
   position: absolute;
   inset: 0;
@@ -138,14 +127,21 @@
   height: 100%;
 }
 
-.uploadIcon {
-  font-size: 2rem;
-  margin-bottom: var(--space-3);
-  display: block;
+.uploadIconWrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4);
+  font-size: 1.2rem;
 }
 
 .dropLabel {
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-md);
   font-weight: 500;
   color: var(--color-text-primary);
   margin-bottom: var(--space-1);
@@ -157,17 +153,18 @@
 }
 
 .formatNote {
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
   font-size: var(--font-size-xs);
-  color: var(--color-text-disabled);
+  color: var(--color-text-tertiary);
 }
 
+/* Divider */
 .orDivider {
   display: flex;
   align-items: center;
   gap: var(--space-4);
   margin: var(--space-5) 0;
-  color: var(--color-text-disabled);
+  color: var(--color-text-tertiary);
   font-size: var(--font-size-sm);
 }
 
@@ -179,8 +176,12 @@
   background: var(--color-border);
 }
 
+/* Sample dataset button — ghost style */
 .sampleButton {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   width: 100%;
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
@@ -189,20 +190,25 @@
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  transition: border-color var(--transition), box-shadow var(--transition);
+  transition: border-color var(--transition), background var(--transition);
 }
 
-.sampleButton:hover {
-  border-color: var(--color-border-hover);
-  box-shadow: var(--shadow-sm);
+.sampleButton:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-subtle);
 }
 
 .sampleButton:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-/* ---- Error banner ---- */
+.sampleIcon {
+  font-size: 0.9rem;
+  opacity: 0.6;
+}
+
+/* Error */
 .error {
   margin-top: var(--space-4);
   padding: var(--space-3) var(--space-4);
@@ -215,16 +221,15 @@
 
 /* ---- Past runs ---- */
 .pastRuns {
-  max-width: 780px;
-  margin: 0 auto;
+  /* inherits page width */
 }
 
 .pastRunsHeading {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--color-text-secondary);
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  color: var(--color-text-tertiary);
   margin-bottom: var(--space-4);
 }
 
@@ -235,17 +240,19 @@
   padding: var(--space-4) var(--space-5);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   margin-bottom: var(--space-3);
   cursor: pointer;
   text-decoration: none;
   color: inherit;
-  transition: border-color var(--transition), box-shadow var(--transition);
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
 }
 
 .runCard:hover {
-  border-color: var(--color-border-hover);
+  border-color: var(--color-border-strong);
   box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
   text-decoration: none;
 }
 
@@ -256,19 +263,7 @@
 }
 
 .runMeta {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
 }
-
-.runStatus {
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 99px;
-}
-
-.statusComplete    { background: #F0FDF4; color: #166534; }
-.statusPending     { background: #EFF6FF; color: #1D4ED8; }
-.statusFailed      { background: var(--color-danger-light); color: var(--color-danger); }
-.statusProcessing  { background: #FEFCE8; color: #92400E; }
