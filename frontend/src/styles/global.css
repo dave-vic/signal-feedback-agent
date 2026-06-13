@@ -1,0 +1,107 @@
+/* =========================================================
+   Signal — Design Tokens & Global Reset
+   All colours, fonts, and spacing live here as CSS variables.
+   Components reference these variables; nothing is hardcoded.
+   ========================================================= */
+
+:root {
+  /* Colour palette */
+  --color-bg:          #F9F9F8;   /* page background — warm off-white */
+  --color-surface:     #FFFFFF;   /* cards, panels, drop zone */
+  --color-border:      #E2E2DF;   /* subtle dividers */
+  --color-border-hover:#C7C7C2;   /* border on hover */
+
+  --color-text-primary:   #1A1A1A;  /* headlines, body */
+  --color-text-secondary: #6B7280;  /* subtitles, metadata, hints */
+  --color-text-disabled:  #A0A0A0;
+
+  --color-accent:         #2563EB;  /* buttons, active states, links */
+  --color-accent-hover:   #1D4ED8;
+  --color-accent-light:   #EFF6FF;  /* tinted background for accent elements */
+
+  --color-success:        #16A34A;
+  --color-warning:        #D97706;
+  --color-danger:         #DC2626;  /* P1 badges */
+  --color-danger-light:   #FEF2F2;
+
+  /* Priority badge colours */
+  --color-p1-bg:   #FEF2F2;  --color-p1-text: #DC2626;
+  --color-p2-bg:   #FFF7ED;  --color-p2-text: #C2410C;
+  --color-p3-bg:   #FEFCE8;  --color-p3-text: #92400E;
+  --color-p4-bg:   #F0FDF4;  --color-p4-text: #166534;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-xs:   0.75rem;   /* 12px */
+  --font-size-sm:   0.875rem;  /* 14px */
+  --font-size-base: 1rem;      /* 16px */
+  --font-size-lg:   1.125rem;  /* 18px */
+  --font-size-xl:   1.25rem;   /* 20px */
+  --font-size-2xl:  1.5rem;    /* 24px */
+  --font-size-3xl:  1.875rem;  /* 30px */
+
+  /* Spacing scale */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius:    8px;
+  --radius-lg: 12px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow:    0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+
+  /* Transitions */
+  --transition: 150ms ease;
+}
+
+/* ---- Reset ---- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  line-height: 1.6;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ---- Utility classes used across screens ---- */
+.container {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
