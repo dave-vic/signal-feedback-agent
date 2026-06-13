@@ -509,17 +509,31 @@ def edit_ticket(ticket_id):
 
         ticket.edited_by_human = True
 
+        # If the ticket was already approved or rejected, editing invalidates
+        # that decision — revert to pending_review so it needs re-approval.
+        previous_status = ticket.status
+        reverted = previous_status in ("approved", "rejected")
+        if reverted:
+            ticket.status = "pending_review"
+
         # Resolve run_id via the parent theme so AuditEvent has it
         theme  = db.session.get(Theme, ticket.theme_id)
         run_id = theme.run_id if theme else None
 
+        action = "ticket_edited_reverted" if reverted else "ticket_edited"
         db.session.add(AuditEvent(
             run_id=run_id,
             stage="human",
-            action="ticket_edited",
+            action=action,
             detail_json=json.dumps({
                 "ticket_id": ticket_id,
                 "changes": diff,
+                "previous_status": previous_status,
+                "reverted_to": "pending_review" if reverted else None,
+                "note": (
+                    f"Ticket edited after being '{previous_status}'; "
+                    "returned to pending_review for re-approval."
+                ) if reverted else None,
             }),
         ))
         db.session.commit()
