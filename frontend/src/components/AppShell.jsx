@@ -408,11 +408,23 @@ export default function AppShell({ children }) {
           </div>
         )}
 
-        <div className={`${styles.navItem} ${styles.navItemDisabled}`}>
-          <span className={styles.navIcon}>≡</span>
-          Audit trail
-          <span className={styles.soonChip}>soon</span>
-        </div>
+        {runId ? (
+          <NavLink
+            to={`/runs/${runId}/audit`}
+            className={({ isActive }) =>
+              `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+            }
+          >
+            <span className={styles.navIcon}>≡</span>
+            Audit trail
+          </NavLink>
+        ) : (
+          <div className={`${styles.navItem} ${styles.navItemDisabled}`}>
+            <span className={styles.navIcon}>≡</span>
+            Audit trail
+            <span className={styles.soonChip}>soon</span>
+          </div>
+        )}
 
         {/* Run history */}
         <RunHistory activeRunId={runId} onRunsLoaded={handleRunsLoaded} />

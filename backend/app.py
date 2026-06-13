@@ -468,6 +468,51 @@ def get_theme(theme_id):
 
 
 # ---------------------------------------------------------------------------
+# Audit trail endpoint
+# ---------------------------------------------------------------------------
+
+@app.route("/runs/<int:run_id>/audit", methods=["GET"])
+def get_audit(run_id):
+    """
+    Returns every AuditEvent for a run in chronological order (oldest first).
+    The frontend translates raw action codes into plain-language sentences.
+    """
+    from models import AuditEvent
+
+    with app.app_context():
+        run = db.session.get(PipelineRun, run_id)
+        if run is None:
+            return jsonify({"error": "Run not found"}), 404
+
+        events = (AuditEvent.query
+                  .filter_by(run_id=run_id)
+                  .order_by(AuditEvent.id)
+                  .all())
+
+        payload = [
+            {
+                "id":         e.id,
+                "stage":      e.stage,
+                "action":     e.action,
+                "timestamp":  e.timestamp.isoformat() if e.timestamp else None,
+                "detail":     json.loads(e.detail_json) if e.detail_json else {},
+                "model_used": e.model_used,
+                "tokens_in":  e.tokens_in,
+                "tokens_out": e.tokens_out,
+            }
+            for e in events
+        ]
+
+    return jsonify({
+        "run_id":     run_id,
+        "filename":   run.filename,
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "status":     run.status,
+        "events":     payload,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Ticket action endpoints — human-in-the-loop
 # ---------------------------------------------------------------------------
 

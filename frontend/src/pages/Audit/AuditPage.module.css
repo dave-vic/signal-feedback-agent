@@ -1,0 +1,292 @@
+/* =========================================================
+   Audit Trail — Screen 6
+   Chronological diary of AI and human actions for a run.
+   ========================================================= */
+
+.page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: var(--space-10) var(--space-10) var(--space-16);
+}
+
+/* ── Breadcrumb ── */
+.breadcrumb {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-5);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.breadcrumbLink {
+  color: var(--color-text-tertiary);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.breadcrumbLink:hover { color: var(--color-text-secondary); }
+.breadcrumbSep { margin: 0 4px; opacity: 0.5; }
+
+/* ── Page header ── */
+.pageHeader {
+  margin-bottom: var(--space-6);
+}
+
+.headline {
+  font-family: var(--font-serif);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-2);
+}
+
+.subline {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.sublineHuman {
+  color: #4338CA;
+  font-weight: 600;
+}
+
+/* ── Legend ── */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-8);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legendDot_ai    { background: #9CA3AF; border: 1.5px solid #D1D5DB; }
+.legendDot_human { background: #4F46E5; }
+
+.legendNote {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+/* ================================================================
+   TIMELINE
+   ================================================================ */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── One event row ── */
+.eventRow {
+  display: flex;
+  gap: var(--space-4);
+  position: relative;
+}
+
+/* ── Left column: dot + connecting line ── */
+.dotCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 20px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;  /* aligns dot with first line of text */
+  position: relative;
+  z-index: 1;
+}
+
+.dot_ai {
+  background: #F3F4F6;
+  border: 2px solid #D1D5DB;
+}
+
+.dot_human {
+  background: #4F46E5;
+  border: 2px solid #4F46E5;
+  box-shadow: 0 0 0 3px #EEF2FF;
+}
+
+/* Vertical connector between dots */
+.line {
+  width: 1.5px;
+  flex: 1;
+  background: var(--color-border);
+  margin: 3px 0 0;
+}
+
+/* No line after the last event */
+.eventRow_last .line { display: none; }
+
+/* ── Right column: event card ── */
+.eventContent {
+  flex: 1;
+  padding-bottom: var(--space-6);
+  min-width: 0;
+}
+
+.eventRow_last .eventContent {
+  padding-bottom: 0;
+}
+
+.eventHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+/* Actor badge */
+.actorBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.actorBadge_ai {
+  background: #F3F4F6;
+  color: #6B7280;
+  border-color: #E5E7EB;
+}
+
+.actorBadge_human {
+  background: #EEF2FF;
+  color: #4338CA;
+  border-color: #C7D2FE;
+}
+
+.eventTime {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Event description — the plain-language sentence */
+.eventDesc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  margin: 0 0 var(--space-1) 0;
+}
+
+/* Secondary note — muted detail */
+.eventNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  line-height: 1.55;
+  margin: 0;
+  font-style: italic;
+}
+
+/* ================================================================
+   EMPTY / LOADING / ERROR STATES
+   ================================================================ */
+
+.stateWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  text-align: center;
+  gap: var(--space-3);
+}
+
+.stateLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.emptyState {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  padding: var(--space-10);
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  margin-top: var(--space-2);
+  transition: border-color var(--transition), background var(--transition);
+}
+.backLink:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-subtle);
+}
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+
+@media (max-width: 768px) {
+  .page {
+    padding: var(--space-6) var(--space-5) var(--space-10);
+  }
+
+  .headline { font-size: 1.4rem; }
+
+  .legend {
+    gap: var(--space-4);
+  }
+
+  .legendNote {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-5) var(--space-4) var(--space-8);
+  }
+}

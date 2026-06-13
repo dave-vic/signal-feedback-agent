@@ -67,6 +67,11 @@ export async function deleteAllRuns() {
   return request('DELETE', '/runs')
 }
 
+/** Get the audit trail for a run — all events in chronological order. */
+export async function getAudit(runId) {
+  return request('GET', `/runs/${runId}/audit`)
+}
+
 /** Get all themes for a run (sorted by priority). */
 export async function getThemes(runId) {
   return request('GET', `/runs/${runId}/themes`)
